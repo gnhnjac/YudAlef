@@ -1,0 +1,13 @@
+{% extends "index.html" %}
+
+{% block body %}
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="800" height="800" style="border: 1px solid black;"></canvas>
+    </div>
+    <div id="button-container">
+        <button style="text-align: center;" id="newGame">New Game</button>
+    </div>
+    <script src="{{ url_for('static', filename='checkers.js') }}"></script>
+
+{% endblock %}

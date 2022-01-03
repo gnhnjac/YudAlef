@@ -1,0 +1,102 @@
+asparagus
+apple
+avacado
+acorn squash
+almond
+artichoke
+tuna
+Apple juice
+bacon
+black beans
+bagel
+baked beans
+BBQ
+beer
+bisque
+bread
+broccoli
+buritto
+babaganoosh
+cabbage
+cake
+carrot
+celery
+cheese
+chicken
+catfish
+chips
+chocolate
+clams
+coffee
+cookies
+corn
+cupcakes
+crab
+curry
+cereal
+chimichanga
+duck
+dumpling
+donut
+eggs
+enchilada
+eggroll
+muffin
+edimame
+sushi
+fajita
+falafel
+fish
+fondu
+french toast
+garlic
+ginger
+goose
+granola
+grapes
+green beans
+guancamole
+crackers
+ham
+halibut
+hamburger
+honey
+hash browns
+hot dogs
+hummus
+french fries
+ice cream
+Irish stew
+italian bread
+jam
+jerky
+jalapeno
+kale
+kabab
+ketchup
+kiwi
+beans
+lobster
+lamb
+linguine
+lasagna
+meatballs
+moose
+milk
+milkshake
+noodles
+pizza
+pepperoni
+pancakes
+quesadilla
+spinach
+spaghetti
+tater tots
+toast
+waffles
+wine
+walnuts
+yogurt
+ziti
+zucchini
+banana

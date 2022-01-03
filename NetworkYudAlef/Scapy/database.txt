@@ -1,0 +1,1 @@
+type:A,ttl:80,qname:www.amifakesite.org,data:104.23.11.32

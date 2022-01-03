@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        ul {
+            list-style-type: none;
+            margin-top: 0;
+            margin-bottom: 5;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+          }
+          
+          li {
+            float: left;
+          }
+          
+          li a {
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+          }
+          
+          /* Change the link color to #111 (black) on hover */
+          li a:hover {
+            background-color: #111;
+          }
+
+          li a#home {
+
+
+            background-color:#4caf50;
+
+          }
+
+          li a#home:hover {
+
+
+            background-color:#315a32;
+
+          }
+
+          #canvas-container {
+            width: 100%;
+            text-align:center;
+         }
+         
+         canvas {
+            display: inline;
+            margin-bottom: 30px;
+         }
+
+        #button-container {
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <ul>
+        <li><a href="{{ url_for('index') }}" id="home">Home</a></li>
+        <li><a href="{{ url_for('tictactoe') }}">Tic Tac Toe</a></li>
+        <li><a href="{{ url_for('connectfour') }}">Connect Four</a></li>
+        <li><a href="{{ url_for('checkers') }}">Checkers</a></li>
+    </ul>
+
+    {% block body %} {% endblock %}
+
+</body>
+</html>
