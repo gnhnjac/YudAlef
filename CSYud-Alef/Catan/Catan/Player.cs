@@ -80,7 +80,7 @@ namespace Catan
 
                     if (tmp3.GetValue() == r_orig.GetValue())
                     {
-                        RemoveCard(deck, ind2);
+                        deck = RemoveCard(deck, ind2);
                         break;
                     }
                     tmp3 = tmp3.GetNext();
@@ -208,6 +208,9 @@ namespace Catan
 
         public bool UseDevelopmentCard(Cards c)
         {
+
+            if (c == Cards.Vp)
+                return false;
 
             Node<Cards> tmp = cards;
 

@@ -225,21 +225,21 @@ namespace Catan
             {
 
                 resources.SetValue(Resource.Wood);
-                resources.SetNext(new Node<Resource>(Resource.Brick, new Node<Resource>(Resource.Hay, new Node<Resource>(Resource.Sheep))));
+                resources.SetNext(new Node<Resource>(Resource.Brick, new Node<Resource>(Resource.Hay, new Node<Resource>(Resource.Sheep,null))));
 
             }
             else if(Investment == GameAction.Road)
             {
 
                 resources.SetValue(Resource.Wood);
-                resources.SetNext(new Node<Resource>(Resource.Brick));
+                resources.SetNext(new Node<Resource>(Resource.Brick,null));
 
             }
             else if(Investment == GameAction.Card)
             {
 
                 resources.SetValue(Resource.Stone);
-                resources.SetNext(new Node<Resource>(Resource.Sheep, new Node<Resource>(Resource.Hay)));
+                resources.SetNext(new Node<Resource>(Resource.Sheep, new Node<Resource>(Resource.Hay,null)));
 
             }
             return resources;
@@ -1372,11 +1372,13 @@ namespace Catan
             if (c.number == 6 || c.number == 8)
                 num_color = Brushes.Red;
 
-            if (c.number.ToString().Length > 1)
-                g.DrawString(c.number.ToString(), new Font("Arial", 16), num_color, new Point(x-15,y-10));
-            else
-                g.DrawString(c.number.ToString(), new Font("Arial", 16), num_color, new Point(x - 10, y - 10));
-
+            if (c.number != 0)
+            {
+                if (c.number.ToString().Length > 1)
+                    g.DrawString(c.number.ToString(), new Font("Arial", 16), num_color, new Point(x - 15, y - 10));
+                else
+                    g.DrawString(c.number.ToString(), new Font("Arial", 16), num_color, new Point(x - 10, y - 10));
+            }
             if (c.has_robber)
             {
 

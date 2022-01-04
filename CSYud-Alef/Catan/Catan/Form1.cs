@@ -87,7 +87,8 @@ namespace Catan
                 startgame.Enabled = false;
                 waitingfor.Enabled = false;
                 waitingfor.Visible = false;
-                File.WriteAllText("data.txt", $"ACTION=INITBOARD:{string.Join(",",game.GetNumbers())}:{string.Join(",", game.GetBiomes())}\nTURN={player}");
+
+                ProtectedWrite(new FileInfo("data.txt"), $"ACTION=INITBOARD:{string.Join(",", game.GetNumbers())}:{string.Join(",", game.GetBiomes())}\nTURN={player}");
                 game.DrawBoard();
 
                 wood.Text = "Wood: 0";
@@ -139,13 +140,11 @@ namespace Catan
 
         private void OnChanged(object sender, FileSystemEventArgs e)
         {
-            while (IsFileLocked(new FileInfo(e.FullPath)))
-                continue;
 
             if (is_not_init && !game_started && e.Name == "data.txt")
             {
 
-                string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
+                string data = ProtectedRead(new FileInfo("data.txt"));
                 string action = data.Split('\n')[0].Replace("ACTION=INITBOARD:", "");
 
                 string[] numbers = action.Split(':')[0].Split(',');
@@ -164,7 +163,8 @@ namespace Catan
                 stone.Text = "Stone: 0";
                 sheep.Text = "Sheep: 0";
                 brick.Text = "Brick: 0";
-                string p = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt").Split('\n')[1].Replace("TURN=", "");
+
+                string p = ProtectedRead(new FileInfo("data.txt")).Split('\n')[1].Replace("TURN=", "");
                 showturn.Text = "Turn: " + p;
                 turn = GetPlayer(p);
                 showturn.BackColor = GetPlayerColor(GetPlayer(p));
@@ -172,8 +172,7 @@ namespace Catan
             }
             else if (game_started && e.Name == "data.txt")
             {
-
-                string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
+                string data = ProtectedRead(new FileInfo("data.txt"));
                 string current_turn = data.Split('\n')[1].Replace("TURN=", "");
                 string action = data.Split('\n')[0].Replace("ACTION=", "");
 
@@ -185,7 +184,7 @@ namespace Catan
 
                         Players new_turn = game.PassTurn(GetPlayer(current_turn));
 
-                        File.WriteAllText("data.txt", $"ACTION=NONE\nTURN=" + GetPlayerStr(new_turn));
+                        ProtectedWrite(new FileInfo("data.txt"), $"ACTION=NONE\nTURN=" + GetPlayerStr(new_turn));
 
                     }
                 }
@@ -220,7 +219,8 @@ namespace Catan
                 }
                 else if (action.Contains("DICE") && player != turn) // ACTION=DICE:num
                 {
-                    Console.WriteLine(action);
+                    
+                    Console.WriteLine("DICING");
                     int num = int.Parse(action.Split(':')[1]);
 
                     game.SetDice(num);
@@ -246,6 +246,31 @@ namespace Catan
             }
 
         }
+
+        private void RollDice(object sender, DoWorkEventArgs e)
+        {
+
+            game.RollDice();
+
+            show_dice.Text = "Dice: " + game.dice.ToString();
+
+            game.GrantDiceResources();
+
+            Update_Resources();
+
+            if (game.dice == 7)
+            {
+
+                action = GameAction.Robber;
+                show_action.Text = "Action Selected: Place Robber";
+
+            }
+
+             Console.WriteLine("CLICKED");
+             ProtectedWrite(new FileInfo("data.txt"), $"ACTION=DICE:{game.dice}\n" + $"TURN={GetPlayerStr(turn)}");
+
+        }
+
 
         private Housing StrToCoords(string pos)
         {
@@ -368,7 +393,7 @@ namespace Catan
             else
                 show_color.ForeColor = Color.Black;
             show_color.Font = new Font(show_color.Font, FontStyle.Bold);
-
+            
             File.WriteAllText($"{player}.txt", "");
             playerbox.Text += $"\r\n{player}";
             is_not_init = true;
@@ -457,146 +482,172 @@ namespace Catan
             if (action == GameAction.House)
             {
 
-                if (initial_house < 2)
-                {
-
-                    if (game.PutHouse(e.X, e.Y, player))
-                    {
-                        initial_house++;
-                        if(initial_house == 1)
-                            game.GrantInitialResources(player);
-                        game.DrawBoard();
-                        game.AddVictoryPoints(player, 1);
-                        vp.Text = "Victory Points: " + game.GetVictoryPoints(player);
-                        Update_Resources();
-                        while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                            continue;
-                        string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
-                        string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                        File.WriteAllText("data.txt", $"ACTION=HOUSE:{game.last_placed_index}:{game.last_placed_position}\n" + rest_of_data);
-                    }
-                    show_action.Text = "Action Selected: None";
-                    action = GameAction.None;
-                    return;
-
-                }
-
-                 if (!game.Buy(player, GameAction.House))
-                 {
-                        notifier.Text = "Message: Not Enough Resources";
-                        return;
-                 }
-
-                if (!game.PutHouse(e.X, e.Y, player))
-                {
-                    notifier.Text = "Message: Couldn't Place House";
-                    game.GrantResource(player, Resource.Wood);
-                    game.GrantResource(player, Resource.Brick);
-                    game.GrantResource(player, Resource.Hay);
-                    game.GrantResource(player, Resource.Sheep);
-                }
-                else
-                {
-                    game.AddVictoryPoints(player, 1);
-                    game.DrawBoard();
-                    vp.Text = "Victory Points: " + game.GetVictoryPoints(player);
-                    while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                        continue;
-                    string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
-                    string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                    File.WriteAllText("data.txt", $"ACTION=HOUSE:{game.last_placed_index}:{game.last_placed_position}\n" + rest_of_data);
-
-                }
-                show_action.Text = "Action Selected: None";
-                action = GameAction.None;
+                    BackgroundWorker send_house_data = new BackgroundWorker { };
+                    send_house_data.DoWork += new DoWorkEventHandler(DoHouseActions);
+                int[] xy = { e.X, e.Y };
+                send_house_data.RunWorkerAsync(argument: xy);
+                
             }
             else if (action == GameAction.Road)
             {
-
-                if (initial_road < 2)
-                {
-
-                    if (game.PutRoad(e.X, e.Y, player))
-                    {
-                        initial_road++;
-                        while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                            continue;
-                        string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
-                        string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                        File.WriteAllText("data.txt", $"ACTION=ROAD:{game.last_placed_index}:{game.last_placed_road_position}\n" + rest_of_data);
-                        game.DrawBoard();
-                    }
-                    show_action.Text = "Action Selected: None";
-                    action = GameAction.None;
-
-                    return;
-
-                }
-
-                 if (!game.Buy(player, GameAction.Road))
-                 {
-                        notifier.Text = "Message: Not Enough Resources";
-                        return;
-                 }
-                
-                if (!game.PutRoad(e.X, e.Y, player))
-                {
-                    notifier.Text = "Message: Couldn't Place Road";
-
-                    game.GrantResource(player, Resource.Wood);
-                    game.GrantResource(player, Resource.Brick);
-
-                }
-                else
-                {
-                    while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                        continue;
-                    string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
-                    string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                    File.WriteAllText("data.txt", $"ACTION=ROAD:{game.last_placed_index}:{game.last_placed_road_position}\n" + rest_of_data);
-                    game.DrawBoard();
-                }
-
-                show_action.Text = "Action Selected: None";
-                action = GameAction.None;
+                BackgroundWorker send_road_data = new BackgroundWorker { };
+                send_road_data.DoWork += new DoWorkEventHandler(DoRoadActions);
+                int[] xy = { e.X, e.Y };
+                send_road_data.RunWorkerAsync(argument:xy);
 
             }
             else if (action == GameAction.Robber)
             {
-                int prev_ind = game.robber_index;
-                Resource r = game.PlaceRobber(e.X, e.Y);
-                game.DrawBoard();
 
-                if (prev_ind != game.robber_index)
-                {
-                    if (r != Resource.None)
-                        game.GrantResource(player, r);
-
-                    while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                        continue;
-                    string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
-                    string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                    File.WriteAllText("data.txt", $"ACTION=ROBBER:{game.robber_index}\n" + rest_of_data);
-
-                    show_action.Text = "Action Selected: None";
-                    action = GameAction.None;
-
-                }
-
+                BackgroundWorker do_robber_actions = new BackgroundWorker { };
+                do_robber_actions.DoWork += new DoWorkEventHandler(DoRobberActions);
+                int[] xy = { e.X, e.Y };
+                do_robber_actions.RunWorkerAsync(argument: xy);
 
             }
 
+        }
+
+        private void DoRobberActions(object sender, DoWorkEventArgs e)
+        {
+            int X = ((int[])e.Argument)[0];
+            int Y = ((int[])e.Argument)[1];
+            int prev_ind = game.robber_index;
+            Resource r = game.PlaceRobber(X, Y);
+            game.DrawBoard();
+
+            if (prev_ind != game.robber_index)
+            {
+                if (r != Resource.None)
+                    game.GrantResource(player, r);
+
+                ProtectedWrite(new FileInfo("data.txt"), $"ACTION=ROBBER:{game.robber_index}\n" + $"TURN={GetPlayerStr(turn)}");
+
+                show_action.Text = "Action Selected: None";
+                action = GameAction.None;
+
+            }
             Update_Resources();
 
         }
+        private void DoRoadActions(object sender, DoWorkEventArgs e)
+        {
+
+            int X = ((int[])e.Argument)[0];
+            int Y = ((int[])e.Argument)[1];
+
+            if (initial_road < 2)
+            {
+
+                if (game.PutRoad(X, Y,player))
+                {
+                    initial_road++;
+                    string data = ProtectedRead(new FileInfo("data.txt"));
+                    string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
+                    ProtectedWrite(new FileInfo("data.txt"), $"ACTION=ROAD:{game.last_placed_index}:{game.last_placed_road_position}\n" + rest_of_data);
+                    game.DrawBoard();
+                }
+                show_action.Text = "Action Selected: None";
+                action = GameAction.None;
+
+                return;
+
+            }
+
+            if (!game.Buy(player, GameAction.Road))
+            {
+                notifier.Text = "Message: Not Enough Resources";
+                return;
+            }
+
+            if (!game.PutRoad(X,Y, player))
+            {
+                notifier.Text = "Message: Couldn't Place Road";
+
+                game.GrantResource(player, Resource.Wood);
+                game.GrantResource(player, Resource.Brick);
+
+            }
+            else
+            {
+
+                string data = ProtectedRead(new FileInfo("data.txt"));
+                string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
+                ProtectedWrite(new FileInfo("data.txt"), $"ACTION=ROAD:{game.last_placed_index}:{game.last_placed_road_position}\n" + rest_of_data);
+                game.DrawBoard();
+            }
+
+            show_action.Text = "Action Selected: None";
+            action = GameAction.None;
+            Update_Resources();
+
+        }
+
+        private void DoHouseActions(object sender, DoWorkEventArgs e)
+        {
+            int X = ((int[])e.Argument)[0];
+            int Y = ((int[])e.Argument)[1];
+
+            if (initial_house < 2)
+            { 
+              if (game.PutHouse(X, Y, player))
+              {
+                    initial_house++;
+                    if (initial_house == 1)
+                        game.GrantInitialResources(player);
+                    game.DrawBoard();
+                    game.AddVictoryPoints(player, 1);
+                    vp.Text = "Victory Points: " + game.GetVictoryPoints(player);
+                    Update_Resources();
+
+                    string data = ProtectedRead(new FileInfo("data.txt"));
+                    string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
+                    ProtectedWrite(new FileInfo("data.txt"), $"ACTION=HOUSE:{game.last_placed_index}:{game.last_placed_position}\n" + rest_of_data);
+                }
+                show_action.Text = "Action Selected: None";
+                action = GameAction.None;
+                return;
+
+            }
+
+            if (!game.Buy(player, GameAction.House))
+            {
+                notifier.Text = "Message: Not Enough Resources";
+                return;
+            }
+
+            if (!game.PutHouse(X, Y, player))
+            {
+                notifier.Text = "Message: Couldn't Place House";
+                game.GrantResource(player, Resource.Wood);
+                game.GrantResource(player, Resource.Brick);
+                game.GrantResource(player, Resource.Hay);
+                game.GrantResource(player, Resource.Sheep);
+            }
+            else
+            {
+                game.AddVictoryPoints(player, 1);
+                game.DrawBoard();
+                vp.Text = "Victory Points: " + game.GetVictoryPoints(player);
+                string data = ProtectedRead(new FileInfo("data.txt"));
+                string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
+                ProtectedWrite(new FileInfo("data.txt"), $"ACTION=HOUSE:{game.last_placed_index}:{game.last_placed_position}\n" + rest_of_data);
+            }
+            show_action.Text = "Action Selected: None";
+            action = GameAction.None;
+            Update_Resources();
+
+        }
+
         protected virtual bool IsFileLocked(FileInfo file)
         {
             try
             {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                using (FileStream stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None))
                 {
                     stream.Close();
                 }
+
             }
             catch (IOException)
             {
@@ -611,6 +662,64 @@ namespace Catan
 
             //file is not locked
             return false;
+        }
+
+        private string ProtectedRead(FileInfo file)
+        {
+            while (true)
+            {
+                try
+                {
+                    string contents = "";
+                    using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                    {
+                        using (StreamReader reader = new StreamReader(stream))
+                        {
+                            contents = reader.ReadToEnd();
+                            reader.Close();
+                        }
+                        stream.Close();
+                    }
+                    return contents;
+                }
+                catch (IOException)
+                {
+                    Application.DoEvents();
+                    continue;
+                }
+            }
+
+        }
+
+        private void ProtectedWrite(FileInfo file, string data)
+        {
+            while (true)
+            {
+                Console.WriteLine("ENTERED");
+                try
+                {
+                    using (FileStream stream = file.Open(FileMode.Truncate, FileAccess.Write, FileShare.None))
+                    {
+                        Console.WriteLine("OPENED");
+                        using (StreamWriter writer = new StreamWriter(stream))
+                        {
+                            Console.WriteLine("WRITING");
+                            writer.Write(data);
+                            writer.Close();
+                        }
+                        stream.Close();
+                    }
+                    Console.WriteLine("DONE");
+                    break;
+                }
+                catch (IOException)
+                {
+                    Console.WriteLine("LOCKED");
+                    Application.DoEvents();
+                    continue;
+                }
+            }
+
         }
 
 
@@ -656,29 +765,10 @@ namespace Catan
 
             if (game_started && turn == player)
             {
-
-                game.RollDice();
-
-                show_dice.Text = "Dice: " + game.dice.ToString();
-
-                game.GrantDiceResources();
-
-                Update_Resources();
-
-                if (game.dice == 7)
-                {
-
-                    action = GameAction.Robber;
-                    show_action.Text = "Action Selected: Place Robber";
-
-                }
-
-                while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                    continue;
-                string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
-                string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                File.WriteAllText("data.txt", $"ACTION=DICE:{game.dice}\n" + rest_of_data);
-
+                BackgroundWorker dice_worker = new BackgroundWorker { };
+                dice_worker.DoWork += new DoWorkEventHandler(RollDice);
+                dice_worker.RunWorkerAsync();
+                
             }
 
         }
@@ -698,6 +788,9 @@ namespace Catan
                 if (!game.Buy(player, GameAction.Card))
                 {
                     notifier.Text = "Message: Not Enough Resources";
+                    game.GrantResource(player, Resource.Stone);
+                    game.GrantResource(player, Resource.Hay);
+                    game.GrantResource(player, Resource.Sheep);
                     return;
                 }
                 Cards card = RandomEnumValue<Cards>();
@@ -735,6 +828,14 @@ namespace Catan
                         game.GrantResource(player, RandomEnumValue<Resource>());
                         Update_Resources();
                     }
+                    else if (typecard.Text == "Knight")
+                    {
+
+                        action = GameAction.Robber;
+                        show_action.Text = "Action Selected: Place Robber";
+
+
+                    }
                 }
 
             }
@@ -745,11 +846,9 @@ namespace Catan
         {
             if (game_started && turn == player)
             {
-                while (IsFileLocked(new FileInfo(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt")))
-                    continue;
-                string data = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "\\data.txt");
+                string data = ProtectedRead(new FileInfo("data.txt"));
                 string rest_of_data = string.Join("\n", data.Split('\n').Skip(1).ToArray());
-                File.WriteAllText("data.txt", $"ACTION=PASSTURN\n" + rest_of_data);
+                ProtectedWrite(new FileInfo("data.txt"), $"ACTION=PASSTURN\n" + rest_of_data);
 
             }
         }
