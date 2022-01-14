@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, l
 import copy
 import json
 import logging
+import os
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -10,7 +11,7 @@ app = Flask(__name__)
 
 app.env = 'development'
 
-app.secret_key = Flask.secret_key
+app.secret_key = os.urandom(24)#Flask.secret_key
 global board
 board = []
 
