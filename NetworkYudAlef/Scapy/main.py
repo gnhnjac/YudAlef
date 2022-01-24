@@ -8,7 +8,7 @@ conf.L3socket=L3RawSocket
 
 def dns_filter(packet):
 
-    return DNS in packet #and packet[UDP].dport == 53 and (packet[DNSQR].qtype == 1 or packet[DNSQR].qtype == 12)
+    return DNS in packet and packet[UDP].dport == 53 and (packet[DNSQR].qtype == 1 or packet[DNSQR].qtype == 12)
 
 while True:
 

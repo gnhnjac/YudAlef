@@ -64,7 +64,6 @@ for i in range(len(string.ascii_lowercase)):
     final_cypher[string.ascii_lowercase[i]] = ''
 
 # make dict
-
 with open('ex4_cipher.txt', 'r') as cipher:
 
     data = cipher.read()
