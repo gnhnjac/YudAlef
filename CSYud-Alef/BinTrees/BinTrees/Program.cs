@@ -13,7 +13,7 @@ namespace BinTrees
         static void Main(string[] args)
         {
             BinNode<int> t = TreeUtils.BuildTree();
-            TreeUtils.PrintLevelOrder(t);
+            Console.WriteLine(TreeUtils.MostInterchangeHeight(t));
 
         }
     }

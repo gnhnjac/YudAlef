@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MyTreeNode xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Info>15</Info>
+  <Left>
+    <Info>6</Info>
+    <Left>
+      <Info>5</Info>
+    </Left>
+    <Right>
+      <Info>9</Info>
+      <Left>
+        <Info>8</Info>
+        <Right>
+          <Info>15</Info>
+        </Right>
+      </Left>
+    </Right>
+  </Left>
+  <Right>
+    <Info>26</Info>
+    <Right>
+      <Info>30</Info>
+      <Right>
+        <Info>7</Info>
+        <Left>
+          <Info>29</Info>
+        </Left>
+      </Right>
+    </Right>
+  </Right>
+</MyTreeNode>
