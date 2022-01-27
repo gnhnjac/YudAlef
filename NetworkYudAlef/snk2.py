@@ -1,35 +1,14 @@
 
-def rotate_left(byte):
+INT_BITS = 8
 
-    new_byte = 0x0
-
-    one = byte & 0b00000001
-    one <<= 1
-    two = byte & 0b00000010
-    two <<= 1
-    three = byte & 0b00000100
-    three <<= 1
-    four = byte & 0b00001000
-    four <<= 1
-    five = byte & 0b00010000
-    five <<= 1
-    six = byte & 0b00100000
-    six <<= 1
-    seven = byte & 0b01000000
-    seven <<= 1
-    eight = byte & 0b10000000
-    eight <<= 1
-
-    new_byte |= one
-    new_byte |= two
-    new_byte |= three
-    new_byte |= four
-    new_byte |= five
-    new_byte |= six
-    new_byte |= seven
-    new_byte |= eight
-
-    return new_byte
+# Function to left
+# rotate n by d bits
+def rotate(n, d):
+    # In n<<d, last d bits are 0.
+    # To put first 3 bits of n at
+    # last, do bitwise or of n<<d
+    # with n >>(INT_BITS - d)
+    return (n << d) | (n >> (INT_BITS - d))
 
 data = b''
 
@@ -39,23 +18,12 @@ with open('encrypted.png', 'rb') as f:
 
 print(data)
 for i in range(len(data)):
-    data[i] = rotate_left(data[i]) & 0xFF
-    data[i] = rotate_left(data[i]) & 0xFF
-    data[i] = rotate_left(data[i]) & 0xFF
-    data[i] = rotate_left(data[i]) & 0xFF
-print("After shift",data)
-
-for i in range(len(data)):
+    data[i] = rotate(data[i],4) & 0xFF
     if i % 3 == 0:
         data[i] = ~data[i] & 0xFF
-print("After not",data)
-
-for i in range(len(data)):
     data[i] ^= 0xBA
-print("after xor",data)
 
 data = data[::-1]
-print("after flip", data)
 
 with open('decrypted.png','wb') as f:
     f.write(data)
