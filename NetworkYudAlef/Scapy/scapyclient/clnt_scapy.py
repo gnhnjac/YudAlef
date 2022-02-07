@@ -5,12 +5,12 @@ from scapy.layers.dns import DNS, DNSQR, DNSRR
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 from scapy.layers.l2 import Ether
 import sys
-DST_IP = '127.0.0.1'
+DST_IP = '192.168.0.109'
 
-IFACE = "Npcap Loopback Adapter"
+IFACE = "eth0"
 
 source_port = random.randint(49152, 65536)
-dst_port = 135
+dst_port = 1802
 seq_num = random.randint(0, 4294967296)
 syn = TCP(sport=source_port, dport=dst_port, seq=seq_num, flags='S')
 packet = IP(dst=DST_IP) / syn
