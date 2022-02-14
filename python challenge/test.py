@@ -63,55 +63,48 @@ im = Image.open('wire.png')
 
 im2 = Image.new('RGB', (100,100))
 
-width, height = im.size
-
-# for i in range(width-2):
+# bit.html you took the wrong curve
 #
-#     im2.putpixel((int(i/4), 0), im.getpixel((i,0)))
-#     im2.putpixel((int(i / 4), 1), im.getpixel((i+1, 0)))
-#     im2.putpixel((int(i / 4), 2), im.getpixel((i+1, 0)))
-#     im2.putpixel((int(i / 4), 3), im.getpixel((i+2, 0)))
+# x = 50
+# y = 50
 #
-# s = 0
-# i = 100
-# while i > 0:
-#     s += i + i-1 + i-1 + i-2
+# stage = 'up'
 #
-#     i-=2
+# lst = []
+# for i in range(1,100):
+#     lst.append(i)
+#     lst.append(i)
 #
-# im3 = Image.new('RGB', (100,100))
+# line_ind = 0
+# for i in lst:
+#     for j in range(i):
+#         if stage == 'up':
+#             im2.putpixel((x,y),im.getpixel((9999-line_ind,0)))
+#             y-=1
+#         elif stage =='left':
+#             im2.putpixel((x, y), im.getpixel((9999-line_ind,0)))
+#             x-=1
+#         elif stage =='down':
+#             im2.putpixel((x, y), im.getpixel((9999-line_ind,0)))
+#             y+=1
+#         elif stage =='right':
+#             im2.putpixel((x, y), im.getpixel((9999-line_ind,0)))
+#             x+=1
+#         line_ind+=1
+#     print(i,stage)
 #
-# shift = 0
-# shift2 = 0
-# for i in range(25):
-#
-#     cropped = im2.crop((i*100, 0, i*100+100, 4))
-#     cropped= ImageChops.offset(cropped, shift, 0)
-#     im3.paste(cropped, (0,i*4))
-#     shift+=2+2*shift2
-#     shift2+=1
-
-# for j in range(100): # y
-#     for i in range(25): # x
-#
-#         im2.putpixel((i*4,j), im.getpixel((j*100+i*4, 0)))
-#         im2.putpixel((i * 4 + 1, j), im.getpixel((j * 100+i*4 + 1, 0)))
-#         im2.putpixel((i * 4 + 2, j), im.getpixel((j * 100 +i*4+ 1, 0)))
-#         im2.putpixel((i * 4 + 3, j), im.getpixel((j * 100 +i*4+ 2, 0)))
-#
+#     if stage == 'up':
+#         stage = 'left'
+#     elif stage == 'left':
+#         stage = 'down'
+#     elif stage == 'down':
+#         stage = 'right'
+#     elif stage == 'right':
+#         stage = 'up'
+# print(line_ind)
 # im2.save('asd.png')
 
-# bit.html you took the wrong curve
+# http://www.pythonchallehugenge.com/pc/return/cat.html
 
-for j in range(100)[::-1][::2]: # y
-    row = im.crop((j*100, 0, j*100+100, 1))
-    row2 = im.crop(((j-1) * 100, 0, (j-1) * 100 + 100, 1))
-    row3 = im.crop(((j-1) * 100, 0, (j-1) * 100 + 100, 1))
-    print(row.size)
-    im2.paste(row, (0,j))
-    im2.paste(row2, (0, j+1))
-    im2.paste(row2, (0, j+2))
-    im2.paste(row3, (0, j+3))
+# cat's name is uzi, ill hear from him later!!!
 
-
-im2.save('asd.png')
