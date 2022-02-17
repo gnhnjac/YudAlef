@@ -8,7 +8,7 @@ using VisualTree;
 
 namespace BinTrees
 {
-    static class TreeUtils
+    static class TreeUtils<T>
     {
 
         static public BinNode<int> BuildTree()
@@ -426,6 +426,13 @@ namespace BinTrees
             }
 
             return max_h;
+
+        }
+
+        public static Node<BinNode<T>> PrintFathers(BinNode<T> tree,BinNode<T> node)
+        {
+
+            Node<BinNode<int>> fathers = GetHeritage();
 
         }
 

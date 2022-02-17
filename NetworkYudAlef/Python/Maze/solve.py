@@ -10,7 +10,7 @@ directions = {'left':(0,-1),'right':(0,1),'top':(-1,0),'bot':(1,0)}
 
 path = os.path.dirname(os.path.realpath(__file__))
 
-maze = Image.open(path+"\\yossimaze.png").convert('RGB')
+maze = Image.open(path+"\\idod.png").convert('RGB')
 
 width,height = maze.size
 
@@ -20,8 +20,8 @@ stack = []
 
 links = {}
 
-#stack.append((0,0))
-stack.append((width-2,0))
+stack.append((0,0))
+#stack.append((width-2,0))
 start = True
 def step():
     global start
@@ -75,7 +75,7 @@ while not done:
     # update the screen
     pygame.display.flip()
     clock.tick(100)
-    for i in range(100):
+    for i in range(1000):
         try:
             step()
         except Exception as e:

@@ -192,37 +192,56 @@ namespace BinTrees
 
         }
         
-        public static void InsertToEnd(Node<int> n,Node<int> n2)
+        public static void InsertToEnd(Node<BinNode<int>> n,BinNode<int> n2)
         {
 
             while (n.GetNext() != null)
                 n = n.GetNext();
 
-            n.SetNext(n2);
+            n.SetNext(new Node<BinNode<int>>(n2));
 
         }
 
-        public static Node<int> GetHeritage(BinNode<int> t, int val)
+        public static Node<BinNode<int>> GetHeritage(BinNode<int> t, BinNode<int> node)
         {
 
             if (t == null)
-                return new Node<int>(0);
+                return new Node<BinNode<int>>(new BinNode<int>(0));
            
 
-            if ((t.GetLeft() != null && t.GetLeft().GetValue() == val) || (t.GetRight() != null && t.GetRight().GetValue() == val))
-                return new Node<int>(t.GetValue());
+            if ((t.GetLeft() != null && t.GetLeft().GetValue() == node.GetValue()) || (t.GetRight() != null && t.GetRight().GetValue() == node.GetValue()))
+                return new Node<BinNode<int>>(t);
 
-            Node<int> n;
-            if (t.GetValue() < val)
+            Node<BinNode<int>> n;
+            if (t.GetValue() < node.GetValue())
             {
-                n = GetHeritage(t.GetRight(), val);
-                InsertToEnd(n, new Node<int>(t.GetValue()));
+                n = GetHeritage(t.GetRight(), node);
+                InsertToEnd(n, t);
                 return n;
             }
 
-            n = GetHeritage(t.GetLeft(), val);
-            InsertToEnd(n, new Node<int>(t.GetValue()));
+            n = GetHeritage(t.GetLeft(), node);
+            InsertToEnd(n, t);
             return n;
+
+        }
+
+        public static BinNode<int> Successor(BinNode<int> bt, BinNode<int> n)
+        {
+
+            Node<BinNode<int>> heritage = GetHeritage(bt,n);
+
+            while (heritage != null)
+            {
+
+                if (heritage.GetValue().GetValue() > n.GetValue())
+                    return heritage.GetValue();
+
+                heritage = heritage.GetNext();
+
+            }
+
+            return null;
 
         }
 
