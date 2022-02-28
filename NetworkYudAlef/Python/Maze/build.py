@@ -1,7 +1,7 @@
 from PIL import Image
 import random
 
-width,height = 1500,1500
+width,height = 2000,2000
 
 class cell:
 

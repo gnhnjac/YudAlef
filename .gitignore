@@ -504,3 +504,5 @@ fabric.properties
 # Portable git directory
 PortableGit/
 
+# codeguru dir
+xtreme/

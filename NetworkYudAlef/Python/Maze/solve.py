@@ -10,7 +10,7 @@ directions = {'left':(0,-1),'right':(0,1),'top':(-1,0),'bot':(1,0)}
 
 path = os.path.dirname(os.path.realpath(__file__))
 
-maze = Image.open(path+"\\idod.png").convert('RGB')
+maze = Image.open(path+"\\mazehuge.png").convert('RGB')
 
 width,height = maze.size
 

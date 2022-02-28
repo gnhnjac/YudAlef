@@ -221,7 +221,7 @@ def main(ip):
     sock= socket.socket()
     exit = False
 
-    port = 1233
+    port = 5555#1233
     try:
         sock.connect((ip,port))
         print (f'Connect succeeded {ip}:{port}')
