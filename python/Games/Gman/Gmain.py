@@ -150,7 +150,7 @@ while run:
         screen = pygame.display.set_mode((1000, 500))
         time.sleep(3)
 
-    if key[pygame.K_h]:
+    if True:#key[pygame.K_h]:
         startg = True
 
     if startg:
