@@ -1,8 +1,13 @@
 import random
-
 import pygame
 from enum import Enum
+from configparser import ConfigParser
 
+# apply configs
+config = ConfigParser()
+config.read('conf.ini')
+WIDTH = int(config.get('settings','WINDOW_WIDTH'))
+HEIGHT = int(config.get('settings','WINDOW_HEIGHT'))
 
 # Notes to self:
 # - Add Dori's idea to add an electricity bar which always decreases and is only replenished by killing enemies and gaining orbs
@@ -16,6 +21,11 @@ from enum import Enum
 # - Add weapons + weapon upgrades
 # - Add consumable items
 # - Add isHoverPlatform to platform to make it not colldie you in sides and bottom
+
+def random_name():
+    with open ('names.txt', 'r') as f:
+        names = f.read().splitlines()
+    return random.choice(names)
 
 class Slider:
     def __init__(self, x, y, w, h, min_value, max_value, value, text, font, text_color, bg_color, fg_color,
@@ -53,6 +63,51 @@ class Slider:
                 self.value = self.min_value
             if self.value > self.max_value:
                 self.value = self.max_value
+
+
+class InputBox:
+    def __init__(self, x, y, w, h, inactive, active, font, text=''):
+        self.rect = pygame.Rect(x, y, w, h)
+        self.color = inactive
+        self.inactive = inactive
+        self.active = active
+        self.text = text
+        self.font = font
+        self.txt_surface = font.render(text, True, self.color)
+        self.active = False
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # If the user clicked on the input_box rect.
+            if self.rect.collidepoint(event.pos):
+                # Toggle the active variable.
+                self.active = not self.active
+            else:
+                self.active = False
+            # Change the current color of the input box.
+            self.color = self.active if self.active else self.inactive
+        if event.type == pygame.KEYDOWN:
+            if self.active:
+                if event.key == pygame.K_RETURN:
+                    print(self.text)
+                    self.text = ''
+                elif event.key == pygame.K_BACKSPACE:
+                    self.text = self.text[:-1]
+                else:
+                    self.text += event.unicode
+                # Re-render the text.
+                self.txt_surface = self.font.render(self.text, True, self.color)
+
+    def update(self):
+        # Resize the box if the text is too long.
+        width = max(200, self.txt_surface.get_width()+10)
+        self.rect.w = width
+
+    def render(self, screen):
+        # Blit the text.
+        screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
+        # Blit the rect.
+        pygame.draw.rect(screen, self.color, self.rect, 2)
 
 
 class Items(Enum):
@@ -198,7 +253,7 @@ class Image:
 
 class Bullet:
 
-    def __init__(self, x, y, radius, color, pos, player_shot=False, vel_mult=1):
+    def __init__(self, x, y, radius, color, pos, player_shot=False, magnitude=200, bg_prog=None):
         self.x = x
         self.y = y
         self.radius = radius
@@ -209,22 +264,24 @@ class Bullet:
         dy = pos[1] - y
 
         direction = pygame.math.Vector2(dx, dy).normalize()
-        direction.scale_to_length(vel_mult)
+        direction.scale_to_length(magnitude)
 
         self.vel_x = direction[0]
         self.vel_y = direction[1]
 
-    def update(self):
-        self.x += self.vel_x
-        self.y += self.vel_y
+        self.bg_prog = bg_prog
 
-    def render(self, win):
-        pygame.draw.circle(win, self.color, (int(self.x), int(self.y)), self.radius)
+    def update(self, dt):
+        self.x += self.vel_x*dt
+        self.y += self.vel_y*dt
+
+    def render(self, win, progression):
+        pygame.draw.circle(win, self.color, (int(self.x-(progression-self.bg_prog)), int(self.y)), self.radius)
 
 
 class Player:
 
-    def __init__(self, idle_image_path: str, move_image_path: str, jump_image_path: str, sprite_width: int,
+    def __init__(self, idle_image_path: str, move_image_path: str, jump_image_path: str, dead_image_path: str, sprite_width: int,
                  side_padding: int, top_padding: int, pos: tuple,
                  speed: int):
         super().__init__()
@@ -241,7 +298,7 @@ class Player:
 
         self.y_velocity = 0
         self.gravity = 25
-        self.jump_height = -20
+        self.jump_height = -22
         self.jump_multiplier = 1
         self.terminal_y_velocity = 50
 
@@ -254,10 +311,16 @@ class Player:
         self.items = []
         self.jump_boost = False
 
+        self.is_temp_dead = False
+        self.revived = False
+        self.dead_time = 5
+        self.dead_timer = 0
+
         # Animation files
         self.idle_sheet = pygame.image.load(idle_image_path)
         self.move_sheet = pygame.image.load(move_image_path)
         self.jump_sheet = pygame.image.load(jump_image_path)
+        self.dead_sheet = pygame.image.load(dead_image_path)
         self.current_image = self.idle_sheet
         self.image = pygame.Surface.subsurface(self.current_image, (0, 0, sprite_width, sprite_width))
         self.frame_width = sprite_width
@@ -267,23 +330,56 @@ class Player:
 
         # Networking variables
         self.id = None
+        self.name = None
+        self.is_host = False
+
+    def revive(self):
+        self.is_temp_dead = False
+        self.dead_timer = 0
+        self.revived = True
+        self.move("stay")
+        self.hp = self.max_health
+        self.stamina = self.max_stamina
+        self.x = 0
+        self.y = 0
 
     def update(self, delta_time: float):
+
+        if self.is_temp_dead and not self.current_image == self.dead_sheet:
+            self.current_image = self.dead_sheet
+            self.animation_timer = 0
+            return
+
+        if self.is_temp_dead:
+            if self.animation_timer < int(self.current_image.get_width() / self.frame_width)-1:
+                self.animation_timer += self.animation_framerate * delta_time
+                if self.animation_timer > int(self.current_image.get_width() / self.frame_width)-1:
+                    self.animation_timer = int(self.current_image.get_width() / self.frame_width)-1
+            else:
+                self.dead_timer += delta_time
+                if self.dead_timer > self.dead_time:
+                    self.revive()
+            return
+
         if self.is_falling:
             self.y_velocity += self.gravity * delta_time
             if self.y_velocity > self.terminal_y_velocity:
                 self.y_velocity = self.terminal_y_velocity
         self.x += self.speed * delta_time
         if self.speed != 0 and self.stamina - 1 * delta_time > 0:
-            self.stamina -= 1 * delta_time
+            self.stamina -= 2 * delta_time
         elif self.speed == 0 and self.stamina < self.max_stamina:
             self.stamina += 15 * delta_time
             if self.stamina > self.max_stamina:
                 self.stamina = self.max_stamina
-        self.y += int(self.y_velocity)
+        self.y += self.y_velocity
         self.animation_timer += self.animation_framerate * delta_time
 
     def move(self, direction: str):
+
+        if self.is_temp_dead:
+            return
+
         if direction == "left":
             if not self.left:
                 self.idle_sheet = pygame.transform.flip(self.idle_sheet, True, False)
@@ -303,9 +399,12 @@ class Player:
         else:
             self.current_image = self.idle_sheet
             self.speed = 0
-            self.animation_timer = 0
 
     def animate(self, x, y):
+
+        if self.is_temp_dead:
+            return
+
         if x > self.x:
             if self.left:
                 self.move_sheet = pygame.transform.flip(self.move_sheet, True, False)
@@ -324,7 +423,6 @@ class Player:
             self.current_image = self.jump_sheet
         if x == self.x and y == self.y:
             self.current_image = self.idle_sheet
-            self.animation_timer = 0
 
     def jump(self):
         if not self.is_falling and self.stamina - 10 > 0:
@@ -351,7 +449,7 @@ class Player:
             self.x += self.speed * 2.5 * delta_time
 
     def draw(self, surface: pygame.Surface):
-        if self.animation_timer >= int(self.current_image.get_width() / self.frame_width):
+        if self.animation_timer >= int(self.current_image.get_width() / self.frame_width) and not self.is_temp_dead:
             self.animation_timer = 0
 
         self.image = pygame.Surface.subsurface(self.current_image, (
@@ -360,10 +458,20 @@ class Player:
             self.frame_width, self.current_image.get_height()))
         self.image = pygame.transform.scale(self.image,
                                             (150, int(150 * self.image.get_height() / self.image.get_width())))
-        surface.blit(self.image, (self.x if self.x < 1920 / 2 else 1920 / 2, self.y))
+        surface.blit(self.image, (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y))
+
+        # Draw name
+        name_font = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
+        name_surface = name_font.render(self.name, True, (255, 255, 255))
+        #name_surface = pygame.transform.scale(name_surface, (150, int(150 * name_surface.get_height() / name_surface.get_width())))
+        surface.blit(name_surface, (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y + self.top_padding/2))
+
+        if self.is_temp_dead:
+            pygame.draw.rect(surface, (255, 0, 0), (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y, 100,10), 2)
+            pygame.draw.rect(surface, (255, 0, 0), (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y, int(100 * self.dead_timer / self.dead_time), 10))
 
     def draw_relative(self, surface: pygame.Surface, progression: int):
-        if self.animation_timer >= int(self.current_image.get_width() / self.frame_width):
+        if self.animation_timer >= int(self.current_image.get_width() / self.frame_width) and not self.is_temp_dead:
             self.animation_timer = 0
 
         self.image = pygame.Surface.subsurface(self.current_image, (
@@ -373,6 +481,15 @@ class Player:
         self.image = pygame.transform.scale(self.image,
                                             (150, int(150 * self.image.get_height() / self.image.get_width())))
         surface.blit(self.image, (self.x - progression, self.y))
+
+        # Draw name
+        name_font = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
+        name_surface = name_font.render(self.name, True, (255, 255, 255))
+        surface.blit(name_surface, (self.x - progression, self.y + self.top_padding / 2))
+
+        if self.is_temp_dead:
+            pygame.draw.rect(surface, (255, 0, 0), (self.x - progression, self.y, 100,10), 2)
+            pygame.draw.rect(surface, (255, 0, 0), (self.x - progression, self.y, int(100 * self.dead_timer / self.dead_time), 10))
 
     def draw_stats(self, surface: pygame.Surface, font: pygame.font.Font):
         pygame.draw.rect(surface, (150, 150, 150), (surface.get_width() - 550, 0, 550, 100))
@@ -389,7 +506,7 @@ class Player:
             # surface.blit(pygame.image.load('resources/icons/jump_boost.png'), (surface.get_width() - 410, 70)) # below stamina
             surface.blit(
                 pygame.transform.scale(pygame.image.load('resources/icons/jump_boost.png'), (60, 60)),
-                ((self.x if self.x < 1920 / 2 else 1920 / 2) + self.side_padding, self.y))  # above player
+                ((self.x if self.x < WIDTH / 2 else WIDTH / 2) + self.side_padding, self.y))  # above player
 
     def collide(self, platforms, delta_time):
         found_bot = False
@@ -419,6 +536,7 @@ class Player:
         self.idle_sheet = [self.idle_sheet.get_size(),pygame.image.tostring(self.idle_sheet, "RGBA")]
         self.jump_sheet = [self.jump_sheet.get_size(),pygame.image.tostring(self.jump_sheet, "RGBA")]
         self.move_sheet = [self.move_sheet.get_size(),pygame.image.tostring(self.move_sheet, "RGBA")]
+        self.dead_sheet = [self.dead_sheet.get_size(),pygame.image.tostring(self.dead_sheet, "RGBA")]
         self.image = [self.image.get_size(),pygame.image.tostring(self.image, "RGBA")]
         self.current_image = [self.current_image.get_size(),pygame.image.tostring(self.current_image, "RGBA")]
 
@@ -426,6 +544,7 @@ class Player:
         self.idle_sheet = pygame.image.fromstring(self.idle_sheet[1], self.idle_sheet[0],"RGBA")
         self.jump_sheet = pygame.image.fromstring(self.jump_sheet[1], self.jump_sheet[0],"RGBA")
         self.move_sheet = pygame.image.fromstring(self.move_sheet[1], self.move_sheet[0], "RGBA")
+        self.dead_sheet = pygame.image.fromstring(self.dead_sheet[1], self.dead_sheet[0], "RGBA")
         self.image = pygame.image.fromstring(self.image[1], self.image[0], "RGBA")
         self.current_image = pygame.image.fromstring(self.current_image[1],self.current_image[0], "RGBA")
 
@@ -536,15 +655,23 @@ class Renderer:
         if self.game_started:
             self.sprites.draw(self.player_id, self.background_progression)
             for bullet in self.bullets:
-                bullet.render(self.screen)
+                bullet.render(self.screen, self.background_progression)
 
     def update_all(self):
         if self.game_started:
             self.sprites.update(self.dt)
             for sprite in self.sprites.get_sprites():
                 sprite.collide(self.platforms, self.dt)
+                if sprite.y + sprite.image.get_height() > self.background.get_size()[1] - 170:
+                    sprite.is_temp_dead = True
             for bullet in self.bullets:
-                bullet.update()
+                bullet.update(self.dt)
+            for bullet in self.bullets:
+                if bullet.x - (self.background_progression - bullet.bg_prog) > WIDTH or bullet.x - (self.background_progression - bullet.bg_prog) < 0 or bullet.y > HEIGHT or bullet.y < 0:
+                    self.bullets.remove(bullet)
+        for child in self.children:
+            if isinstance(child, InputBox):
+                child.update()
 
     def add_child(self, child):
         if isinstance(child, JumpPad):
@@ -576,8 +703,8 @@ class Renderer:
     def clear_platforms(self):
         self.platforms.clear()
 
-    def add_bullet(self, x, y, x2, y2, rad, isplayer, vel_mult=1):
-        self.bullets.append(Bullet(x, y, rad, (255, 255, 255), (x2, y2), isplayer, vel_mult))
+    def add_bullet(self, x, y, x2, y2, rad, isplayer, vel_mult=200):
+        self.bullets.append(Bullet(x, y, rad, (255, 255, 255), (x2, y2), isplayer, vel_mult,self.background_progression))
 
     def update_dt(self):
         t = pygame.time.get_ticks()
@@ -612,6 +739,8 @@ class MusicManager:
         self.music_index = random.randint(0, len(self.music_list) - 1)
         pygame.mixer.init()
         pygame.mixer.music.set_volume(music_volume)
+        # fucking mute this piece fo shit
+        pygame.mixer.music.set_volume(0)
 
     def start_music(self):
         pygame.mixer.music.load(self.music_list[self.music_index])

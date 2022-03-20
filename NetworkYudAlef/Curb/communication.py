@@ -32,9 +32,9 @@ class DH:
 
 class PlayerPayload:
     def __init__(self, p_id, name, player):
-        self.name = name
         self.player = player
         self.player.id = p_id
+        self.player.name = name
 
 
 class Client:
@@ -107,6 +107,8 @@ class Client:
             self.handle_lobby(msg)
         elif instruction == "COOR":
             self.handle_coords(msg)
+        elif instruction == "STRT":
+            self.renderer.game_started = True
         else:
             print("Unknown instruction")
 
@@ -133,11 +135,15 @@ class Client:
         :param msg:
         :return:
         """
-        msg = msg.split(b"#")
-        p_id = msg[0].decode()
-        x = struct.unpack("!i", msg[1])[0]
-        y = struct.unpack("!i", msg[2])[0]
-        self.renderer.update_player_coords(p_id, x, y)
+        try:
+            p_id = msg.split(b"|")[0].decode()
+            msg = msg[len(p_id) + 1:]
+            x = struct.unpack("!i", msg[:4])[0]
+            y = struct.unpack("!i", msg[5:])[0]
+            self.renderer.update_player_coords(p_id, x, y)
+        except:
+            print("Error parsing coordinates")
+            print(msg)
 
     def send(self, msg):
         """
@@ -173,7 +179,7 @@ class Client:
         :param y:
         :return:
         """
-        self.send(b"COOR#" + str(self.renderer.player_id).encode() + b"#" + struct.pack("!i",int(x)) +  b"#" + struct.pack("!i", int(y)))
+        self.send(b"COOR#" + str(self.renderer.player_id).encode() + b"|" + struct.pack("!i",int(x)) +  b"|" + struct.pack("!i", int(y)))
 
 class Server:
     def __init__(self, host, port, max_connections):
@@ -187,6 +193,7 @@ class Server:
         self.accept_thread = threading.Thread(target=self.accept_connections)
         self.accept_thread.start()
         self.client_threads = []
+        self.lock = threading.Lock()
 
         # Diffie Hellman parameters
         self.private_key = None
@@ -245,9 +252,10 @@ class Server:
         :return:
         """
         for conn in self.lobby:
-            payload = self.lobby[conn]
-            if payload.player.id != sender_id:
-                send_with_size(conn, data)
+            with self.lock:
+                payload = self.lobby[conn]
+                if payload.player.id != sender_id:
+                    send_with_size(conn, data)
 
     def close(self):
         """
@@ -290,13 +298,14 @@ class Server:
         if instruction == 'PLPL':
             data = data[5:]
             payload = pickle.loads(data)
-            self.lobby[conn] = payload
+            with self.lock:
+                self.lobby[conn] = payload
             self.broadcast_lobby_update()
-            print(f'{payload.name} has joined the lobby, {len(self.lobby)}/{self.max_conns}')
+            print(f'{payload.player.name} has joined the lobby, {len(self.lobby)}/{self.max_conns}')
         elif instruction == "COOR":
             self.broadcast_to_lobby(data, self.lobby[conn].player.id)
         elif instruction == "QUIT":
-            print(f'{self.lobby[conn].name} has left the lobby, {len(self.lobby)-1}/{self.max_conns}')
+            print(f'{self.lobby[conn].player.name} has left the lobby, {len(self.lobby)-1}/{self.max_conns}')
             self.lobby.pop(conn)
             self.broadcast_lobby_update()
 
@@ -311,3 +320,7 @@ class Server:
             pickled = pickle.dumps(payload)
             data += len(pickled).to_bytes(8, "big") + b"|" + pickled
         self.broadcast_to_lobby(data)
+
+    def broadcast_start(self):
+        for conn in self.lobby:
+            send_with_size(conn, b"STRT")
