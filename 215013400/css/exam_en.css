@@ -1,0 +1,62 @@
+﻿
+
+
+
+.base.panel .base.panelcontent.editor
+{
+	text-align:left;
+	direction:ltr;
+}
+
+
+
+.base.panel.left .base.panelcontent,.base.panel.right .base.panelcontent,.base.panel.center .base.panelcontent, .base.panel.left2 .base.panelcontent
+{
+	text-align:left;
+	direction:ltr;
+}
+
+.base.linktopageholder
+{
+	text-align:right !important;
+}
+
+.base.panelcontent.markupR
+{
+	padding-right:auto !important;
+	padding-left:20px !important;
+}
+.base.panelcontent.markupL
+{
+	padding-left:auto !important;
+	padding-right:95px !important;
+}
+.base.panelcontent .verseside
+{
+	right:auto;
+	left:3px;
+}
+.base.panelcontent .meaningside
+{
+	left:auto;
+	right:12px;
+}
+
+
+.base.panel.left .base.combotext,.base.panel.left2 .base.combotext
+{
+	direction:ltr;
+	text-align:left;
+}
+
+
+.base.panel .base.panelcontent.question
+{
+	text-align:left;
+	direction:ltr;
+}
+ .cz_select_box:after 
+ {
+   right: 5px;
+   left: auto;
+ }

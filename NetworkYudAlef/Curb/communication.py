@@ -109,6 +109,10 @@ class Client:
             self.handle_coords(msg)
         elif instruction == "STRT":
             self.renderer.game_started = True
+        elif instruction == "GOVR":
+            self.renderer.game_over = True
+        elif instruction == "BULL":
+            self.renderer.add_bullet_from_obj(pickle.loads(msg))
         else:
             print("Unknown instruction")
 
@@ -128,8 +132,8 @@ class Client:
             lobby.append(pl)
         self.renderer.load_lobby(lobby)
 
-
     def handle_coords(self, msg):
+
         """
         Parses coordinates update into renderer
         :param msg:
@@ -179,7 +183,24 @@ class Client:
         :param y:
         :return:
         """
-        self.send(b"COOR#" + str(self.renderer.player_id).encode() + b"|" + struct.pack("!i",int(x)) +  b"|" + struct.pack("!i", int(y)))
+        self.send(
+            b"COOR#" + str(self.renderer.player_id).encode() + b"|" + struct.pack("!i", int(x)) + b"|" + struct.pack(
+                "!i", int(y)))
+
+    def send_bullet(self, bullet):
+        """
+        Send a bullet to the server
+        :param bullet:
+        :return:
+        """
+        self.send(b"BULL#" + pickle.dumps(bullet))
+
+    def send_dead(self):
+        self.send(b"DEAD")
+
+    def send_revived(self):
+        self.send(b"REVD")
+
 
 class Server:
     def __init__(self, host, port, max_connections):
@@ -241,7 +262,7 @@ class Server:
             data = recv_by_size(client)
             if data == b'':
                 break
-            self.apply_instruction(data,client)
+            self.apply_instruction(data, client)
         client.close()
 
     def broadcast_to_lobby(self, data, sender_id=None):
@@ -292,9 +313,6 @@ class Server:
         """
 
         instruction = data[:4].decode()
-
-        to_send = b''
-
         if instruction == 'PLPL':
             data = data[5:]
             payload = pickle.loads(data)
@@ -304,10 +322,27 @@ class Server:
             print(f'{payload.player.name} has joined the lobby, {len(self.lobby)}/{self.max_conns}')
         elif instruction == "COOR":
             self.broadcast_to_lobby(data, self.lobby[conn].player.id)
+        elif instruction == "DEAD":
+            self.lobby[conn].player.is_dead = True
+            gameover = True
+            for conn in self.lobby:
+                payload = self.lobby[conn]
+                if not payload.player.is_dead:
+                    gameover = False
+                    break
+
+            if gameover:
+                self.broadcast_game_over()
+        elif instruction == "REVD":
+            self.lobby[conn].player.is_dead = False
+        elif instruction == "BULL":
+            self.broadcast_to_lobby(data, self.lobby[conn].player.id)
         elif instruction == "QUIT":
-            print(f'{self.lobby[conn].player.name} has left the lobby, {len(self.lobby)-1}/{self.max_conns}')
+            print(f'{self.lobby[conn].player.name} has left the lobby, {len(self.lobby) - 1}/{self.max_conns}')
             self.lobby.pop(conn)
             self.broadcast_lobby_update()
+        else:
+            print("Unknown instruction")
 
     def broadcast_lobby_update(self):
         """
@@ -322,5 +357,7 @@ class Server:
         self.broadcast_to_lobby(data)
 
     def broadcast_start(self):
-        for conn in self.lobby:
-            send_with_size(conn, b"STRT")
+        self.broadcast_to_lobby(b"STRT")
+
+    def broadcast_game_over(self):
+        self.broadcast_to_lobby(b"GOVR")

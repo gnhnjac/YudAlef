@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>9BF023CF-7391-458D-9F5A-E6CC5ADD68A7</title>
+    <g id="guidline" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="icons" transform="translate(-972.000000, -1358.000000)">
+            <g id="ic_attention_dark" transform="translate(972.000000, 1358.000000)">
+                <rect id="Rectangle" x="0" y="0" width="24" height="24"></rect>
+                <g id="Group-5" transform="translate(3.000000, 3.000000)">
+                    <circle id="Oval" stroke="#3A4A69" stroke-width="2" cx="9" cy="9" r="9"></circle>
+                    <line x1="9.20689655" y1="4.26666667" x2="9.20689655" y2="9.33333333" id="Path" stroke="#3A4A69" stroke-width="2" stroke-linecap="round"></line>
+                    <ellipse id="Oval" fill="#3A4A69" cx="9.20689655" cy="12.8" rx="1.18661258" ry="1.18181818"></ellipse>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -8,6 +8,18 @@ config = ConfigParser()
 config.read('conf.ini')
 WIDTH = int(config.get('settings','WINDOW_WIDTH'))
 HEIGHT = int(config.get('settings','WINDOW_HEIGHT'))
+ACTIVE_HITBOXES = config.getboolean('settings','ACTIVE_HITBOXES')
+
+# Assets
+# Fonts
+PIX_FONT = None # pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
+
+# Buildings
+JUMP_PAD = None # pygame.image.load("resources/special/jump_pad_crystalized.png").convert_alpha()
+JUMP_PAD_USED = None # pygame.image.load('resources/special/used_pad.png').convert_alpha()
+
+# Icons
+JUMP_BOOST_ICON = None # pygame.image.load('resources/icons/jump_boost.png').convert_alpha()
 
 # Notes to self:
 # - Add Dori's idea to add an electricity bar which always decreases and is only replenished by killing enemies and gaining orbs
@@ -26,6 +38,60 @@ def random_name():
     with open ('names.txt', 'r') as f:
         names = f.read().splitlines()
     return random.choice(names)
+
+
+class Checkbox:
+    def __init__(self, surface, x, y, color, caption,outline_color,check_color, font, font_color,text_offset=(45, 15)):
+        self.surface = surface
+        self.x = x
+        self.y = y
+        self.color = color
+        self.caption = caption
+        self.oc = outline_color
+        self.cc = check_color
+        self.fc = font_color
+        self.to = text_offset
+        self.font = font
+
+        # checkbox object
+        self.checkbox_obj = pygame.Rect(self.x, self.y, 40, 40)
+        self.checkbox_outline = self.checkbox_obj.copy()
+
+        # variables to test the different states of the checkbox
+        self.checked = False
+
+    def _draw_button_text(self):
+        self.font_surf = self.font.render(self.caption, True, self.fc)
+        w, h = self.font.size(self.caption)
+        self.font_pos = (self.x + self.to[0], self.y + 12 / 2 - h / 2 +
+        self.to[1])
+        self.surface.blit(self.font_surf, self.font_pos)
+
+    def render(self, surface):
+        if self.checked:
+            pygame.draw.rect(self.surface, self.color, self.checkbox_obj)
+            pygame.draw.rect(self.surface, self.oc, self.checkbox_outline, 1)
+            pygame.draw.circle(self.surface, self.cc, (self.x + 20, self.y + 20), 16)
+
+        elif not self.checked:
+            pygame.draw.rect(self.surface, self.color, self.checkbox_obj)
+            pygame.draw.rect(self.surface, self.oc, self.checkbox_outline, 1)
+        self._draw_button_text()
+
+    def _update(self):
+        x, y = pygame.mouse.get_pos()
+        px, py, w, h = self.checkbox_obj
+        if px < x < px + w and py < y < py + w:
+            if self.checked:
+                self.checked = False
+            else:
+                self.checked = True
+            print(str(self.caption)+' toggle '+str(self.checked))
+
+    def update_checkbox(self):
+        self.click = True
+        self._update()
+
 
 class Slider:
     def __init__(self, x, y, w, h, min_value, max_value, value, text, font, text_color, bg_color, fg_color,
@@ -217,7 +283,7 @@ class Image:
     def __init__(self, x, y, image_path: str, fade_in: bool = False):
         self.x = x
         self.y = y
-        self.image = pygame.image.load(image_path).convert()
+        self.image = pygame.image.load(image_path).convert_alpha()
         self.image.set_alpha(255 if not fade_in else 0)
         self.is_fading_in = fade_in
         self.is_fading_out = False
@@ -253,15 +319,17 @@ class Image:
 
 class Bullet:
 
-    def __init__(self, x, y, radius, color, pos, player_shot=False, magnitude=200, bg_prog=None):
+    def __init__(self, x, y, for_vel_x, for_vel_y, radius, color, pos, travel_max, player_shot=False, magnitude=200, bg_prog=None):
         self.x = x
         self.y = y
+        self.orig_x, self.orig_y = x, y
         self.radius = radius
         self.color = color
         self.player_shot = player_shot
+        self.travel_max = travel_max
 
-        dx = pos[0] - x
-        dy = pos[1] - y
+        dx = pos[0] - for_vel_x
+        dy = pos[1] - for_vel_y
 
         direction = pygame.math.Vector2(dx, dy).normalize()
         direction.scale_to_length(magnitude)
@@ -276,12 +344,20 @@ class Bullet:
         self.y += self.vel_y*dt
 
     def render(self, win, progression):
-        pygame.draw.circle(win, self.color, (int(self.x-(progression-self.bg_prog)), int(self.y)), self.radius)
+        pygame.draw.circle(win, self.color, (self.x-progression, self.y), self.radius)
+
+        if ACTIVE_HITBOXES:
+            pygame.draw.rect(win, (0, 255, 0), (self.x - progression-self.radius, self.y-self.radius, self.radius*2, self.radius*2), 2)
+    def collide(self, platforms):
+        for p in platforms:
+            if p.collide_coords(self.x,self.y):
+                return True
+        return False
 
 
 class Player:
 
-    def __init__(self, idle_image_path: str, move_image_path: str, jump_image_path: str, dead_image_path: str, sprite_width: int,
+    def __init__(self, idle_image_path: str, move_image_path: str, jump_image_path: str, dead_image_path: str, dash_image_path: str, sprite_width: int,
                  side_padding: int, top_padding: int, pos: tuple,
                  speed: int):
         super().__init__()
@@ -293,14 +369,15 @@ class Player:
         self.left = False
         self.animation_timer = 0
         self.x, self.y = pos
+        self.orig_x, self.orig_y = pos
         self.side_padding = side_padding
         self.top_padding = top_padding
 
         self.y_velocity = 0
-        self.gravity = 25
-        self.jump_height = -22
+        self.gravity = 14
+        self.jump_height = -12
         self.jump_multiplier = 1
-        self.terminal_y_velocity = 50
+        self.terminal_y_velocity = 30
 
         # Game variables
         self.max_health = 100
@@ -311,16 +388,22 @@ class Player:
         self.items = []
         self.jump_boost = False
 
+        self.is_dead = False
         self.is_temp_dead = False
         self.revived = False
         self.dead_time = 5
         self.dead_timer = 0
+
+        self.dash_framerate = 10
+        self.dash_duration = 1.2
+        self.dash_timer = -1
 
         # Animation files
         self.idle_sheet = pygame.image.load(idle_image_path)
         self.move_sheet = pygame.image.load(move_image_path)
         self.jump_sheet = pygame.image.load(jump_image_path)
         self.dead_sheet = pygame.image.load(dead_image_path)
+        self.dash_image = pygame.image.load(dash_image_path)
         self.current_image = self.idle_sheet
         self.image = pygame.Surface.subsurface(self.current_image, (0, 0, sprite_width, sprite_width))
         self.frame_width = sprite_width
@@ -340,8 +423,8 @@ class Player:
         self.move("stay")
         self.hp = self.max_health
         self.stamina = self.max_stamina
-        self.x = 0
-        self.y = 0
+        self.x = self.orig_x
+        self.y = self.orig_y
 
     def update(self, delta_time: float):
 
@@ -360,6 +443,11 @@ class Player:
                 if self.dead_timer > self.dead_time:
                     self.revive()
             return
+
+        if self.dash_timer != -1:
+            self.dash_timer += self.dash_framerate * delta_time
+            if self.dash_timer >= self.dash_duration:
+                self.dash_timer = -1
 
         if self.is_falling:
             self.y_velocity += self.gravity * delta_time
@@ -385,6 +473,7 @@ class Player:
                 self.idle_sheet = pygame.transform.flip(self.idle_sheet, True, False)
                 self.move_sheet = pygame.transform.flip(self.move_sheet, True, False)
                 self.jump_sheet = pygame.transform.flip(self.jump_sheet, True, False)
+                self.dash_image = pygame.transform.flip(self.dash_image, True, False)
             self.current_image = self.move_sheet
             self.speed = -self.xspeed
             self.left = True
@@ -393,6 +482,7 @@ class Player:
                 self.move_sheet = pygame.transform.flip(self.move_sheet, True, False)
                 self.idle_sheet = pygame.transform.flip(self.idle_sheet, True, False)
                 self.jump_sheet = pygame.transform.flip(self.jump_sheet, True, False)
+                self.dash_image = pygame.transform.flip(self.dash_image, True, False)
                 self.left = False
             self.current_image = self.move_sheet
             self.speed = self.xspeed
@@ -419,12 +509,14 @@ class Player:
                 self.jump_sheet = pygame.transform.flip(self.jump_sheet, True, False)
             self.current_image = self.move_sheet
             self.left = True
-        if y < self.y:
+        elif y != self.y:
             self.current_image = self.jump_sheet
-        if x == self.x and y == self.y:
+        else:
             self.current_image = self.idle_sheet
 
     def jump(self):
+        if self.is_temp_dead:
+            return
         if not self.is_falling and self.stamina - 10 > 0:
             self.current_image = self.jump_sheet
             self.y_velocity = self.jump_height * self.jump_multiplier
@@ -444,25 +536,29 @@ class Player:
         self.is_falling = True
 
     def dash(self, delta_time: float):
-        if self.stamina - 10 > 0:
-            self.stamina -= 10
-            self.x += self.speed * 2.5 * delta_time
+        if self.is_temp_dead:
+            return
+        if self.stamina - 20 > 0:
+            self.stamina -= 20
+            self.x += self.speed * 5 * delta_time
+            self.dash_timer = 0
 
     def draw(self, surface: pygame.Surface):
         if self.animation_timer >= int(self.current_image.get_width() / self.frame_width) and not self.is_temp_dead:
             self.animation_timer = 0
-
-        self.image = pygame.Surface.subsurface(self.current_image, (
-            0 + self.frame_width * int(self.animation_timer),
-            0,
-            self.frame_width, self.current_image.get_height()))
+        if self.dash_timer != -1:
+            self.image = self.dash_image
+        else:
+            self.image = pygame.Surface.subsurface(self.current_image, (
+                0 + self.frame_width * int(self.animation_timer),
+                0,
+                self.frame_width, self.current_image.get_height()))
         self.image = pygame.transform.scale(self.image,
                                             (150, int(150 * self.image.get_height() / self.image.get_width())))
         surface.blit(self.image, (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y))
 
         # Draw name
-        name_font = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
-        name_surface = name_font.render(self.name, True, (255, 255, 255))
+        name_surface = PIX_FONT.render(self.name, True, (255, 255, 255))
         #name_surface = pygame.transform.scale(name_surface, (150, int(150 * name_surface.get_height() / name_surface.get_width())))
         surface.blit(name_surface, (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y + self.top_padding/2))
 
@@ -470,26 +566,34 @@ class Player:
             pygame.draw.rect(surface, (255, 0, 0), (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y, 100,10), 2)
             pygame.draw.rect(surface, (255, 0, 0), (self.x if self.x < WIDTH / 2 else WIDTH / 2, self.y, int(100 * self.dead_timer / self.dead_time), 10))
 
+        if ACTIVE_HITBOXES:
+            pygame.draw.rect(surface, (255, 0, 0), (self.x if self.x < WIDTH / 2 else WIDTH / 2 + self.side_padding, self.y + self.top_padding, self.image.get_width() - self.side_padding*2, self.image.get_height() - self.top_padding), 2)
+
     def draw_relative(self, surface: pygame.Surface, progression: int):
         if self.animation_timer >= int(self.current_image.get_width() / self.frame_width) and not self.is_temp_dead:
             self.animation_timer = 0
+        try:
+            self.image = pygame.Surface.subsurface(self.current_image, (
+                0 + self.frame_width * int(self.animation_timer),
+                0,
+                self.frame_width, self.current_image.get_height()))
+            self.image = pygame.transform.scale(self.image,
+                                                (150, int(150 * self.image.get_height() / self.image.get_width())))
+            surface.blit(self.image, (self.x - progression, self.y))
+        except Exception as e:
+            print(e)
 
-        self.image = pygame.Surface.subsurface(self.current_image, (
-            0 + self.frame_width * int(self.animation_timer),
-            0,
-            self.frame_width, self.current_image.get_height()))
-        self.image = pygame.transform.scale(self.image,
-                                            (150, int(150 * self.image.get_height() / self.image.get_width())))
-        surface.blit(self.image, (self.x - progression, self.y))
 
         # Draw name
-        name_font = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
-        name_surface = name_font.render(self.name, True, (255, 255, 255))
+        name_surface = PIX_FONT.render(self.name, True, (255, 255, 255))
         surface.blit(name_surface, (self.x - progression, self.y + self.top_padding / 2))
 
         if self.is_temp_dead:
             pygame.draw.rect(surface, (255, 0, 0), (self.x - progression, self.y, 100,10), 2)
             pygame.draw.rect(surface, (255, 0, 0), (self.x - progression, self.y, int(100 * self.dead_timer / self.dead_time), 10))
+
+        if ACTIVE_HITBOXES:
+            pygame.draw.rect(surface, (255, 0, 0), (self.x + self.side_padding - progression, self.y + self.top_padding, self.image.get_width() - self.side_padding*2, self.image.get_height() - self.top_padding), 2)
 
     def draw_stats(self, surface: pygame.Surface, font: pygame.font.Font):
         pygame.draw.rect(surface, (150, 150, 150), (surface.get_width() - 550, 0, 550, 100))
@@ -505,7 +609,7 @@ class Player:
         if self.jump_boost:
             # surface.blit(pygame.image.load('resources/icons/jump_boost.png'), (surface.get_width() - 410, 70)) # below stamina
             surface.blit(
-                pygame.transform.scale(pygame.image.load('resources/icons/jump_boost.png'), (60, 60)),
+                pygame.transform.scale(JUMP_BOOST_ICON, (60, 60)),
                 ((self.x if self.x < WIDTH / 2 else WIDTH / 2) + self.side_padding, self.y))  # above player
 
     def collide(self, platforms, delta_time):
@@ -519,14 +623,11 @@ class Player:
                     self.jump_multiplier = platform.jump_multiplier
                     self.jump_boost = True
                     platform.used = True
-            if platform.collide(
-                    self) and platform.y < self.y + self.image.get_height() < platform.y + platform.height and self.speed < 0:
-                self.x += self.speed * delta_time
-            if platform.collide(
-                    self) and platform.y < self.y + self.image.get_height() < platform.y + platform.height and self.speed > 0:
+            if platform.collide(self) and platform.y < self.y + self.image.get_height() < platform.y + platform.height and self.speed < 0:
                 self.x -= self.speed * delta_time
-            if platform.collide(
-                    self) and platform.y + platform.height > self.y + self.top_padding and self.y_velocity < 0:
+            if platform.collide(self) and platform.y < self.y + self.image.get_height() < platform.y + platform.height and self.speed > 0:
+                self.x -= self.speed * delta_time
+            if platform.collide(self) and platform.y + platform.height > self.y + self.top_padding and self.y_velocity < 0:
                 self.y_velocity = 0
 
         if not found_bot:
@@ -537,6 +638,7 @@ class Player:
         self.jump_sheet = [self.jump_sheet.get_size(),pygame.image.tostring(self.jump_sheet, "RGBA")]
         self.move_sheet = [self.move_sheet.get_size(),pygame.image.tostring(self.move_sheet, "RGBA")]
         self.dead_sheet = [self.dead_sheet.get_size(),pygame.image.tostring(self.dead_sheet, "RGBA")]
+        self.dash_image = [self.dash_image.get_size(),pygame.image.tostring(self.dash_image, "RGBA")]
         self.image = [self.image.get_size(),pygame.image.tostring(self.image, "RGBA")]
         self.current_image = [self.current_image.get_size(),pygame.image.tostring(self.current_image, "RGBA")]
 
@@ -545,6 +647,7 @@ class Player:
         self.jump_sheet = pygame.image.fromstring(self.jump_sheet[1], self.jump_sheet[0],"RGBA")
         self.move_sheet = pygame.image.fromstring(self.move_sheet[1], self.move_sheet[0], "RGBA")
         self.dead_sheet = pygame.image.fromstring(self.dead_sheet[1], self.dead_sheet[0], "RGBA")
+        self.dash_image = pygame.image.fromstring(self.dash_image[1], self.dash_image[0], "RGBA")
         self.image = pygame.image.fromstring(self.image[1], self.image[0], "RGBA")
         self.current_image = pygame.image.fromstring(self.current_image[1],self.current_image[0], "RGBA")
 
@@ -563,10 +666,18 @@ class Platform:
                 return True
         return False
 
+    def collide_coords(self, x, y):
+        return (self.x + self.width >= x >= self.x) and (self.y <= y <= self.y + self.height)
+
     def draw(self, surface: pygame.Surface, background_progression: int):
         if self.color is not None and self.x + self.width - background_progression > 0:
             pygame.draw.rect(surface, self.color, (self.x - background_progression, self.y, self.width, self.height))
 
+        if ACTIVE_HITBOXES:
+            s = PIX_FONT.render(str(self.x) + " " + str(self.y), True, (255, 255, 255))
+            surface.blit(s, (self.x - background_progression + 20, self.y))
+            pygame.draw.rect(surface, (255, 0, 0), (
+            self.x - background_progression, self.y, self.width, self.height), 2)
 
 class SpriteGroup:
     def __init__(self, surface: pygame.Surface):
@@ -608,8 +719,8 @@ class JumpPad(Platform):
         if self.x + self.width - background_progression > 0 and (
                 (self.is_finite and not self.used) or not self.is_finite):
             surface.blit(
-                pygame.transform.scale(pygame.image.load("resources/special/jump_pad_crystalized.png" if (
-                        not self.used or not self.is_finite) else 'resources/special/used_pad.png').convert(),
+                pygame.transform.scale((JUMP_PAD if
+                        not self.used or not self.is_finite else JUMP_PAD_USED),
                                        (self.width, self.height)),
                 (self.x - background_progression, self.y))
 
@@ -629,6 +740,29 @@ class Renderer:
 
         self.player_id = None
         self.game_started = False
+        self.game_over = False
+
+        # Init global assets
+        self.load_global_assets(True)
+
+
+    def load_global_assets(self, use_convert_alpha: bool):
+        # Init global assets
+        global PIX_FONT, JUMP_PAD, JUMP_PAD_USED, JUMP_BOOST_ICON
+        PIX_FONT = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
+        if use_convert_alpha:
+            # Buildings
+            JUMP_PAD = pygame.image.load("resources/special/jump_pad_crystalized.png").convert_alpha()
+            JUMP_PAD_USED = pygame.image.load('resources/special/used_pad.png').convert_alpha()
+
+            # Icons
+            JUMP_BOOST_ICON = pygame.image.load('resources/icons/jump_boost.png').convert_alpha()
+        else:
+            JUMP_PAD = pygame.image.load("resources/special/jump_pad_crystalized.png").convert()
+            JUMP_PAD_USED = pygame.image.load('resources/special/used_pad.png').convert()
+
+            # Icons
+            JUMP_BOOST_ICON = pygame.image.load('resources/icons/jump_boost.png').convert()
 
     def render_all(self, mouse_pos: tuple):
         self.background.x = -self.background_progression
@@ -661,13 +795,16 @@ class Renderer:
         if self.game_started:
             self.sprites.update(self.dt)
             for sprite in self.sprites.get_sprites():
-                sprite.collide(self.platforms, self.dt)
-                if sprite.y + sprite.image.get_height() > self.background.get_size()[1] - 170:
+                if sprite.id == self.player_id:
+                    sprite.collide(self.platforms, self.dt)
+                if sprite.y + sprite.image.get_height() > self.background.get_size()[1] - 170 and sprite.id != self.player_id:
                     sprite.is_temp_dead = True
+                if sprite.revived and sprite.id != self.player_id:
+                    sprite.revived = False
             for bullet in self.bullets:
                 bullet.update(self.dt)
             for bullet in self.bullets:
-                if bullet.x - (self.background_progression - bullet.bg_prog) > WIDTH or bullet.x - (self.background_progression - bullet.bg_prog) < 0 or bullet.y > HEIGHT or bullet.y < 0:
+                if bullet.x - bullet.orig_x > bullet.travel_max or bullet.x < 0 or bullet.x > self.background.get_size()[0] or bullet.y < 0 or bullet.y > self.background.get_size()[1] or bullet.collide(self.platforms):
                     self.bullets.remove(bullet)
         for child in self.children:
             if isinstance(child, InputBox):
@@ -703,8 +840,11 @@ class Renderer:
     def clear_platforms(self):
         self.platforms.clear()
 
-    def add_bullet(self, x, y, x2, y2, rad, isplayer, vel_mult=200):
-        self.bullets.append(Bullet(x, y, rad, (255, 255, 255), (x2, y2), isplayer, vel_mult,self.background_progression))
+    def add_bullet(self, x, y, vel_x, vel_y, x2, y2, rad, isplayer, vel_mult=200):
+        self.bullets.append(Bullet(x, y, vel_x, vel_y, rad, (255, 255, 255), (x2, y2), 2000, isplayer, vel_mult,self.background_progression))
+
+    def add_bullet_from_obj(self, bull):
+        self.bullets.append(bull)
 
     def update_dt(self):
         t = pygame.time.get_ticks()
@@ -730,6 +870,12 @@ class Renderer:
                 sprite.x = x
                 sprite.y = y
                 break
+
+    def has_child(self, c):
+        for child in self.children:
+            if child == c:
+                return True
+        return False
 
 
 class MusicManager:

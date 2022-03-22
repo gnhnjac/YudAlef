@@ -17,8 +17,8 @@ mixer = MusicManager(['resources/music/' + music for music in os.listdir('resour
 
 # pygame setup
 pygame.init()
-clock = pygame.time.Clock()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
 
 # assets
 pix_font = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
@@ -48,6 +48,8 @@ volume_slider = Slider(w / 2 - 200 + 15, h / 2 - 400, 400, 100, 0, 1, 1, "Music 
                        (8, 96, 168), (45, 115, 178), (8, 96, 168), 2)
 quit_settings_button = Button(0, 0, 400, 100, "Quit", (0, 0, 0), pix_font, (45, 115, 178), (8, 96, 168), (0, 0, 0), 0)
 
+# convert_radio_btn = Checkbox(screen, w / 2 - 200 + 15, h / 2 - 300, (230,230,230),"Change convert method (In case of poor performance)",(0,0,0),(0,0,0), pix_font, (8, 96, 168))
+
 # game assets
 
 players = ["Cyborg","Punk","Biker"]
@@ -55,7 +57,7 @@ choice = random.choice(players)
 
 monologue = Image(0, 0, "resources\\images\\monologue.png", True)
 player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png", f"resources\\sprites\\{choice}_Thin\\{choice}_run.png",
-                f"resources\\sprites\\{choice}_Thin\\{choice}_jump.png",f"resources\\sprites\\{choice}_Thin\\{choice}_death.png", 32, 32, 48, (w / 2, h - 500), 500)
+                f"resources\\sprites\\{choice}_Thin\\{choice}_jump.png",f"resources\\sprites\\{choice}_Thin\\{choice}_death.png",f"resources\\sprites\\{choice}_Thin\\{choice}_dash.png", 32, 32, 48, (w / 2, h - 500), 500)
 # gameover assets
 gameover_button = Button(0, 0, 400, 100, "Restart", (0, 0, 0), pix_font, (45, 115, 178), (8, 96, 168), (0, 0, 0), 0)
 gameover = None
@@ -63,12 +65,15 @@ gameover = None
 renderer = Renderer(screen, title)
 renderer.game_started = False
 
+player_still = False
+
 cl = None
 
 
 def connect(ip,port, name):
     global cl
-    cl = Client(ip, port, name, renderer)
+    if cl is None:
+        cl = Client(ip, port, name, renderer)
     cl.send_pp(player=player)
 
 
@@ -107,15 +112,17 @@ def init_settings():
     renderer.add_child(volume_slider)
     renderer.add_child(quit_settings_button)
 
-
 def init_gameover():
     global renderer
     global gameover
     global player
     global choice
-    player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png", f"resources\\sprites\\{choice}_Thin\\{choice}_run.png",
-                f"resources\\sprites\\{choice}_Thin\\{choice}_jump.png", 32, 32, 48, (w / 2, h - 500), 500)
-
+    player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png",
+                    f"resources\\sprites\\{choice}_Thin\\{choice}_run.png",
+                    f"resources\\sprites\\{choice}_Thin\\{choice}_jump.png",
+                    f"resources\\sprites\\{choice}_Thin\\{choice}_death.png",
+                    f"resources\\sprites\\{choice}_Thin\\{choice}_dash.png",
+    32, 32, 48, (w / 2, h - 500), 500)
     gameover = Image(0, 0, "resources\\images\\death_screens\\death_screen" + str(random.randint(0, 2)) + ".png")
     renderer.__init__(screen, gameover)
     renderer.add_child(gameover_button)
@@ -133,7 +140,7 @@ while running:
             port_input.handle_event(event)
             name_input.handle_event(event)
         if event.type == pygame.MOUSEBUTTONUP:
-            if renderer.background == title and not renderer.background.is_fading_out:
+            if renderer.background == title and not renderer.background.is_fading_out and not renderer.has_child(waiting_for_players):
                 if quit_btn.is_clicked(pygame.mouse.get_pos()):
                     running = False
                 elif connect_btn.is_clicked(pygame.mouse.get_pos()):
@@ -175,10 +182,14 @@ while running:
                     player.move("stay")
                 if event.key == pygame.K_d:
                     player.move("stay")
-            if event.type == pygame.MOUSEBUTTONUP:
-                renderer.add_bullet((player.x if player.x < WIDTH / 2 else WIDTH / 2) + player.image.get_width() / 2,
-                                    player.y + player.image.get_height() / 2, pygame.mouse.get_pos()[0],
-                                    pygame.mouse.get_pos()[1], 10, True, 700)
+            if event.type == pygame.MOUSEBUTTONUP and not player.is_temp_dead:
+                m_pos = pygame.mouse.get_pos()
+                renderer.add_bullet(player.x  + player.image.get_width() / 2,
+                                    player.y + player.image.get_height() / 2, (player.x if player.x < WIDTH / 2 else WIDTH / 2) + player.image.get_width() / 2,
+                                    player.y + player.image.get_height() / 2, m_pos[0],
+                                    m_pos[1], 10, True, 700)
+                cl.send_bullet(Bullet(player.x  + player.image.get_width() / 2,
+                                    player.y + player.image.get_height() / 2, (player.x if player.x < WIDTH / 2 else WIDTH / 2) + player.image.get_width() / 2, player.y + player.image.get_height() / 2, 10,(255,255,255),m_pos,2000, True,700,renderer.background_progression))
 
     if renderer.game_started and renderer.background == title:
         renderer.fadeout_bg(monologue)
@@ -192,9 +203,11 @@ while running:
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:
-        player.__init__("resources\\sprites\\Cyborg_Thin\\Cyborg_idle.png",
-                        "resources\\sprites\\Cyborg_Thin\\Cyborg_run.png",
-                        "resources\\sprites\\Cyborg_Thin\\Cyborg_jump.png", 32, 32, 48, (w / 2, h - 500), 12)
+        player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png",
+                        f"resources\\sprites\\{choice}_Thin\\{choice}_run.png",
+                        f"resources\\sprites\\{choice}_Thin\\{choice}_jump.png",
+                        f"resources\\sprites\\{choice}_Thin\\{choice}_death.png",
+                        f"resources\\sprites\\{choice}_Thin\\{choice}_dash.png", 32, 32, 48, (w / 2, h - 500), 500)
         renderer.__init__(screen, title)
         mixer.stop_music()
         init_opening_screen()
@@ -210,21 +223,34 @@ while running:
             player.jump()
         if player.x > WIDTH / 2:
             renderer.background_progression = player.x - WIDTH / 2
-        if player.y + player.image.get_height() > h - 170:
+        if player.y + player.image.get_height() > h - 170 or player.hp <= 0:
             player.is_temp_dead = True
-            # init_gameover()
-            # renderer.game_started = False
+            cl.send_dead()
 
     if player.revived:
         player.revived = False
         renderer.background_progression = 0
+        cl.send_revived()
+
+    if renderer.game_over is True:
+        renderer.game_over = False
+        renderer.game_started = False
+        init_gameover()
 
     pygame.draw.rect(screen, (0, 0, 0), (0, 0, w, h))
+    prev_x = player.x
+    prev_y = player.y
     renderer.update_all()
     renderer.render_all(pygame.mouse.get_pos())
     if renderer.game_started:
         player.draw_stats(screen, pix_font)
-        cl.send_player_coords(player.x, player.y)
+        if prev_x != player.x or prev_y != player.y:
+            cl.send_player_coords(player.x, player.y)
+            player_still = False
+        elif prev_x == player.x and prev_y == player.y and not player_still:
+            cl.send_player_coords(player.x, player.y)
+            player_still = True
+
     pygame.display.flip()
     framerate_text.set_text("FPS: " + str(int(clock.get_fps())))
     clock.tick(60)
