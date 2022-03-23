@@ -419,6 +419,12 @@ class Player:
         self.dash_duration = 1.2
         self.dash_timer = -1
 
+        self.dash_mult = 5
+
+        self.shoot_timer = -1
+        self.shoot_framerate = 10
+        self.shoot_cooldown = 2
+
         self.world = "monologue"
 
         # Animation files
@@ -472,6 +478,11 @@ class Player:
             if self.dash_timer >= self.dash_duration:
                 self.dash_timer = -1
 
+        if self.shoot_timer != -1:
+            self.shoot_timer += self.shoot_framerate * delta_time
+            if self.shoot_timer >= self.shoot_cooldown:
+                self.shoot_timer = -1
+
         if self.hp < self.max_health:
             self.hp += 4 * delta_time
             if self.hp > self.max_health:
@@ -518,9 +529,16 @@ class Player:
             self.current_image = self.idle_sheet
             self.speed = 0
 
-    def animate(self, x, y):
+    def animate(self, x, y, dt):
 
         if self.is_temp_dead:
+            return
+
+        if abs(x-self.x) >= self.xspeed*self.dash_mult*dt:
+            self.current_image = self.dash_image
+            self.dash_timer = 0
+            return
+        if self.dash_timer != -1:
             return
 
         if x > self.x:
@@ -528,6 +546,7 @@ class Player:
                 self.move_sheet = pygame.transform.flip(self.move_sheet, True, False)
                 self.idle_sheet = pygame.transform.flip(self.idle_sheet, True, False)
                 self.jump_sheet = pygame.transform.flip(self.jump_sheet, True, False)
+                self.dash_image = pygame.transform.flip(self.dash_image, True, False)
                 self.left = False
             self.current_image = self.move_sheet
         elif x < self.x:
@@ -535,6 +554,7 @@ class Player:
                 self.idle_sheet = pygame.transform.flip(self.idle_sheet, True, False)
                 self.move_sheet = pygame.transform.flip(self.move_sheet, True, False)
                 self.jump_sheet = pygame.transform.flip(self.jump_sheet, True, False)
+                self.dash_image = pygame.transform.flip(self.dash_image, True, False)
             self.current_image = self.move_sheet
             self.left = True
         elif y != self.y:
@@ -568,7 +588,7 @@ class Player:
             return
         if self.stamina - 20 > 0:
             self.stamina -= 20
-            self.x += self.speed * 5 * delta_time
+            self.x += self.speed * self.dash_mult * delta_time
             self.dash_timer = 0
 
     def draw(self, surface: pygame.Surface, stage_width: int):
@@ -769,7 +789,8 @@ class HeightPortal(Image):
         self.height = height if height is not None else self.image.get_height()
         self.destination = destination
 
-        if inverted:
+        self.inverted = inverted
+        if self.inverted:
             self.image = pygame.transform.flip(self.image, True, False)
 
     def render(self, surface: pygame.Surface, background_progression: int):
@@ -780,6 +801,14 @@ class HeightPortal(Image):
             if self.fade_out():
                 self.is_fading_out = False
                 self.faded_out = True
+        text = PIX_FONT.render(self.destination, True, (255, 255, 255))
+        text = pygame.transform.rotate(text, -90 if not self.inverted else 90)
+        text_rect = text.get_rect()
+        if not self.inverted:
+            text_rect.center = (self.x + self.width - background_progression, self.y + self.height / 2)
+        else:
+            text_rect.center = (self.x - background_progression, self.y + self.height / 2)
+        surface.blit(text, text_rect)
         if self.x + self.image.get_width() - background_progression > 0:
             surface.blit(self.image, (self.x - background_progression, self.y))
 
@@ -853,10 +882,7 @@ class Renderer:
             elif isinstance(child, JumpPad):
                 child.render(self.screen, self.background_progression)
             else:
-                try:
-                    child.render(self.screen)
-                except:
-                    print(type(child))
+                child.render(self.screen)
         if self.game_started:
             self.sprites.draw(self.player_id, self.background_progression, self.background, self.world)
             for bullet in self.bullets:
@@ -877,7 +903,7 @@ class Renderer:
             for bullet in self.bullets:
                 if bullet.world == "arena":
                     for sprite in self.sprites.get_sprites():
-                        if bullet.collide_with(sprite) and bullet.shooter_id != sprite.id and not sprite.is_temp_dead:
+                        if bullet.collide_with(sprite) and bullet.shooter_id != sprite.id and not sprite.is_temp_dead and sprite.dash_timer == -1:
                             sprite.hp -= bullet.damage
                             self.bullets.remove(bullet)
                 if bullet.x - bullet.orig_x > bullet.travel_max or bullet.x < 0 or bullet.x > self.background.get_size()[0] or bullet.y < 0 or bullet.y > self.background.get_size()[1] or bullet.collide(self.platforms):
@@ -958,7 +984,7 @@ class Renderer:
     def update_player_coords(self, p_id, x, y):
         for sprite in self.sprites.get_sprites():
             if str(sprite.id) == str(p_id):
-                sprite.animate(x, y)
+                sprite.animate(x, y, self.dt)
                 sprite.x = x
                 sprite.y = y
                 break

@@ -135,14 +135,14 @@ def init_arena():
     renderer.replace_bg(arena)
     renderer.add_child(framerate_text)
     renderer.add_imaginary_platform(HeightPortal((4000-80, 0), None, None,"monologue", True))
-    renderer.add_platform((0, h - 255), 4000, 255, (255,0,0))
-    renderer.add_platform((1000, h/2-100), 700, 50, (255,0,0))
-    renderer.add_platform((0, h/2-100), 500, 50, (255,0,0))
-    renderer.add_platform((800, h/2-400), 1000, 50, (255,0,0))
-    renderer.add_platform((3000, h/2-300), 600, 50, (255,0,0))
+    renderer.add_platform((0, h - 255), 4000, 255, (0,255,0))
+    renderer.add_platform((1000, h/2-100), 700, 50, (0,255,0))
+    renderer.add_platform((0, h/2-100), 500, 50, (241,145,155))
+    renderer.add_platform((800, h/2-400), 1000, 50, (0,255,0))
+    renderer.add_platform((3000, h/2-300), 600, 50, (0,0,255))
     renderer.add_platform((2500, h/2-200), 400, 50, (255,0,0))
     renderer.add_child(JumpPad((2000, h - 255 - 40), 115, 40, 1.7))
-    renderer.add_child(JumpPad((100, h - 255 - 40), 115, 40, 1.7))
+    renderer.add_child(JumpPad((500, h - 255 - 40), 115, 40, 1.7))
 
 
 def init_settings():
@@ -219,7 +219,7 @@ while running:
                     player.move("stay")
                 if event.key == pygame.K_d:
                     player.move("stay")
-            if event.type == pygame.MOUSEBUTTONUP and not player.is_temp_dead:
+            if event.type == pygame.MOUSEBUTTONUP and not player.is_temp_dead and event.button == 1 and player.shoot_timer == -1:
                 m_pos = pygame.mouse.get_pos()
                 x_pos = (player.x - (renderer.background.get_size()[0] - WIDTH)) if player.x > renderer.background.get_size()[0] - WIDTH / 2 else (
                     player.x if player.x < WIDTH / 2 else WIDTH / 2)
@@ -228,7 +228,9 @@ while running:
                                     player.y + player.image.get_height() / 2, m_pos[0],
                                     m_pos[1], 10, 700)
                 cl.send_bullet(Bullet(player.x  + player.image.get_width() / 2,
-                                    player.y + player.image.get_height() / 2, (player.x if player.x < WIDTH / 2 else WIDTH / 2) + player.image.get_width() / 2, player.y + player.image.get_height() / 2, 10,(255,255,255),m_pos,2000, player.id,700,renderer.background_progression, renderer.world))
+                                    player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 2, 10,(255,255,255),m_pos,2000, player.id,700,renderer.background_progression, renderer.world))
+
+                player.shoot_timer = 0
 
     if renderer.game_started and renderer.background == title:
         player = renderer.get_player()
@@ -296,7 +298,6 @@ while running:
             if player.world == "monologue":
                 init_monologue(False)
             print(player.world)
-        print(renderer.background_progression)
 
     pygame.display.flip()
     framerate_text.set_text("FPS: " + str(int(clock.get_fps())))
