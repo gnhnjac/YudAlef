@@ -113,6 +113,11 @@ class Client:
             self.renderer.game_over = True
         elif instruction == "BULL":
             self.renderer.add_bullet_from_obj(pickle.loads(msg))
+        elif instruction == "WORL":
+            msg = msg.split(b"#")
+            id = msg[0].decode()
+            wrld = msg[1].decode()
+            self.renderer.get_player_by_id(id).world = wrld
         else:
             print("Unknown instruction")
 
@@ -200,6 +205,9 @@ class Client:
 
     def send_revived(self):
         self.send(b"REVD")
+
+    def send_world(self):
+        self.send(b"WORL#" + str(self.renderer.player_id).encode() +b"#" + self.renderer.world.encode())
 
 
 class Server:
@@ -341,6 +349,8 @@ class Server:
             print(f'{self.lobby[conn].player.name} has left the lobby, {len(self.lobby) - 1}/{self.max_conns}')
             self.lobby.pop(conn)
             self.broadcast_lobby_update()
+        elif instruction == "WORL":
+            self.broadcast_to_lobby(data, self.lobby[conn].player.id)
         else:
             print("Unknown instruction")
 
