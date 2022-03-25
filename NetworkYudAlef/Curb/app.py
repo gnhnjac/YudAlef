@@ -69,6 +69,9 @@ gameover = None
 # arena assets
 arena = Image(0, 0, "resources\\images\\arena-repeating-bg.png", True, None, None, True, 4000, 1080)
 
+guns = [Weapons.GUN, Weapons.SHOTGUN, Weapons.SYN_UZI, Weapons.FIRE_WALL_FLAMETHROWER, Weapons.MACHINE_GUN]
+weapon_index = 0
+
 renderer = Renderer(screen, title)
 renderer.game_started = False
 
@@ -99,6 +102,7 @@ init_opening_screen()
 def init_monologue(fade_in=True):
     global renderer
     global player
+    player.change_weapon(Weapons.GUN)
     renderer.world = "monologue"
     renderer.orig_background_progression = 0
     renderer.background_progression = 0
@@ -200,6 +204,14 @@ while running:
             port_input.handle_event(event)
             name_input.handle_event(event)
         if event.type == pygame.MOUSEBUTTONUP:
+
+            if renderer.game_started and event.button == 4 and renderer.world == "arena":
+                weapon_index  = (weapon_index + 1) % len(guns)
+                player.change_weapon(guns[weapon_index])
+            if renderer.game_started and event.button == 5 and renderer.world == "arena":
+                weapon_index  = (weapon_index - 1) % len(guns)
+                player.change_weapon(guns[weapon_index])
+
             if renderer.background == title and not renderer.background.is_fading_out and not renderer.has_child(waiting_for_players):
                 if quit_btn.is_clicked(pygame.mouse.get_pos()):
                     running = False
@@ -233,6 +245,9 @@ while running:
                     renderer.fadeout_bg(title)
                     init_opening_screen()
                     mixer.stop_music()
+            if renderer.game_started:
+                if player.weapon == Weapons.MACHINE_GUN:
+                    player.shoot_cooldown = player.machine_gun_start_cooldown
         if renderer.game_started:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
@@ -248,14 +263,19 @@ while running:
                 m_pos = pygame.mouse.get_pos()
                 x_pos = (player.x - (renderer.background.get_size()[0] - WIDTH)) if player.x > renderer.background.get_size()[0] - WIDTH / 2 else (
                     player.x if player.x < WIDTH / 2 else WIDTH / 2)
-                renderer.add_bullet(player.x + player.image.get_width() / 2,
-                                    player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2,
-                                    player.y + player.image.get_height() / 2, m_pos[0],
-                                    m_pos[1], 10, 700)
-                cl.send_bullet(Bullet(player.x  + player.image.get_width() / 2,
-                                    player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 2, 10,(255,255,255),m_pos,2000, player.id,700,renderer.background_progression, renderer.world))
-
-                player.shoot_timer = 0
+                if player.weapon == Weapons.GUN:
+                    renderer.add_bullet(cl, player.x + player.image.get_width() / 2,
+                                        player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2,
+                                        player.y + player.image.get_height() / 2, m_pos[0],
+                                        m_pos[1], 10, 700)
+                    player.shoot_timer = 0
+                elif player.weapon == Weapons.SHOTGUN:
+                    for i in range(-1, 2):
+                        renderer.add_bullet(cl, player.x + player.image.get_width() / 2,
+                                            player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2,
+                                            player.y + player.image.get_height() / 2, m_pos[0],
+                                            m_pos[1] + i*30, 10, 700, 500, 4)
+                    player.shoot_timer = 0
 
     if renderer.game_started and renderer.background == title:
         player = renderer.get_player()
@@ -265,7 +285,31 @@ while running:
         if renderer.background == settings:
             volume_slider.update(pygame.mouse.get_pos())
             mixer.set_volume(volume_slider.value)
-
+        if renderer.game_started:
+            m_pos = pygame.mouse.get_pos()
+            x_pos = (player.x - (renderer.background.get_size()[0] - WIDTH)) if player.x > \
+                                                                                renderer.background.get_size()[
+                                                                                    0] - WIDTH / 2 else (
+                player.x if player.x < WIDTH / 2 else WIDTH / 2)
+            if player.weapon == Weapons.FIRE_WALL_FLAMETHROWER:
+                for i in range(50):
+                    randy = random.randint(-10,10)
+                    randx = random.randint(0, 20)
+                    rand_color = random.choice([(random.randint(100,255), 0, 0), (255, 128, 0),(242,186,73)])
+                    renderer.add_bullet(cl, player.x + player.image.get_width() / 2 + randx,
+                                        player.y + player.image.get_height() / 2 + randy,
+                                        x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 1,
+                                        m_pos[0], m_pos[1] + randy, 2, 100, 120, 0.01, rand_color)
+            elif player.weapon == Weapons.SYN_UZI and player.shoot_timer == -1:
+                renderer.add_bullet(cl, player.x + player.image.get_width() / 2, player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 2, m_pos[0], m_pos[1], 5, 1000, 600, 1.45)
+                player.shoot_timer = 0
+            elif player.weapon == Weapons.MACHINE_GUN and player.shoot_timer == -1:
+                for i in range(10):
+                    renderer.add_bullet(cl, player.x + player.image.get_width() / 2, player.y + player.image.get_height() / 2, x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 2, m_pos[0], m_pos[1] + random.randint(-20,20), 5, 600, 300, 0.1)
+                player.shoot_cooldown -= renderer.dt*player.machine_gun_cooldown_reduction_multiplier
+                if player.shoot_cooldown < 0.5:
+                    player.shoot_cooldown = 0.5
+                player.shoot_timer = 0
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:
         player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png",
@@ -291,6 +335,7 @@ while running:
         if player.y + player.image.get_height() >= h - 170 or player.hp <= 0 and not player.is_temp_dead:
             player.is_temp_dead = True
             cl.send_dead()
+        player.check_mouse_over_gun_slot(pygame.mouse.get_pos())
 
     if player.revived:
         player.revived = False

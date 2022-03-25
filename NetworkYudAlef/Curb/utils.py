@@ -12,9 +12,10 @@ MAX_STAMINA = int(config.get('settings', 'MAX_STAMINA'))
 MAX_HEALTH = int(config.get('settings', "MAX_HEALTH"))
 ACTIVE_HITBOXES = config.getboolean('settings', 'ACTIVE_HITBOXES')
 
-# Assets
+# Global Assets
 # Fonts
 PIX_FONT = None  # pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
+SMALL_ARIEL = None
 
 # Buildings
 JUMP_PAD = None  # pygame.image.load("resources/special/jump_pad_crystalized.png").convert_alpha()
@@ -181,8 +182,8 @@ class InputBox:
 
 class Items(Enum):
     # Powerups
-    COPPER_WIRE = 0  # Increase speed but decrease armor
-    SILVER_WIRE = 1  # Increase armor but decrease speed
+    COPPER_WIRE = 0  # Increase speed but decrease health
+    SILVER_WIRE = 1  # Increase health but decrease speed
     GOLD_WIRE = 2  # Increase armor drastically but decrease speed drastically
     ANTI_VIRUS_SYSTEM = 5  # Decreases damage taken from viruses
     NEW_CPU = 7  # Increases health, armor and stamina by 10%
@@ -208,7 +209,7 @@ class Items(Enum):
 
 class Weapons(Enum):
     # Basic weapons
-    GUN = 0  # Just a basic gun
+    GUN = "Basic gun"  # Just a basic gun
     UDP_PACKET_MISSILE = 1  # Shoots out UDP packets that seek out enemies, has a low chance of hitting
     SYN_ACK_CANNON = 3  # Deals low damage and has a short cooldown but has a high chance of hitting
     SYN_UZI = 4  # Deals medium damage and has a very low cooldown but has a very low chance of hitting
@@ -227,11 +228,49 @@ class Weapons(Enum):
     DOOM = 14  # destruction.
 
 
-class Consumables(Enum):
-    JUMP_PAD_POTION = 0  # Restores used jump pads
-    HEALTH_POTION = 1  # Restores health
-    ARMOR_POTION = 2  # Restores armor
-    STAMINA_POTION = 3  # Restores stamina
+def get_weapon_name(weapon):
+    weapon_name_dict = {Weapons.GUN: "Basic gun", Weapons.UDP_PACKET_MISSILE: "UDP packet missile",
+                        Weapons.SYN_ACK_CANNON: "SYN/ACK cannon",
+                        Weapons.SYN_UZI: "SYN/UZI", Weapons.SHOTGUN: "Shotgun", Weapons.MACHINE_GUN: "Machine gun",
+                        Weapons.FIRE_WALL_FLAMETHROWER: "Fire wall", Weapons.LASER: "Laser",
+                        Weapons.YOSSIZ_THE_DEVASTATOR: "Yossiz the devastator",
+                        Weapons.THE_LIGHTNING_BOLT: "The lightning bolt", Weapons.SYN_ACK_LASER: "SYN/ACK laser",
+                        Weapons.CYBER_CALL_OF_THE_BLACK_KNIGHT: "Cyber call of the black knight", Weapons.DOOM: "Doom"}
+    return weapon_name_dict[weapon]
+
+
+def get_weapon_description(weapon):
+    weapon_description_dict = {Weapons.GUN: "Low speed. Low damage. Medium cooldown. 100% hit chance.",
+                               Weapons.UDP_PACKET_MISSILE: "Shoots out UDP packets that seek out enemies, has a low chance of hitting",
+                               Weapons.SYN_ACK_CANNON: "Deals low damage and has a short cooldown but has a high chance of hitting",
+                               Weapons.SYN_UZI: "Deals medium damage and has a very low cooldown but has a very low chance of hitting",
+                               Weapons.SHOTGUN: "Deals high damage and has a medium cooldown but has a medium chance of hitting",
+                               Weapons.MACHINE_GUN: "Deals high damage and has a long cooldown but has a very low chance of hitting",
+                               Weapons.FIRE_WALL_FLAMETHROWER: "Deals high damage and has a very long cooldown but has a very high chance of hitting",
+                               Weapons.LASER: "Deals high damage and has a very long cooldown but has a very high chance of hitting",
+                               Weapons.YOSSIZ_THE_DEVASTATOR: "Deals immensely high damage in a spread attack and has a short cooldown, has a good chance of hitting",
+                               Weapons.THE_LIGHTNING_BOLT: "Deals incredibly high damage and has a medium cooldown, has a good chance of hitting",
+                               Weapons.SYN_ACK_LASER: "Deals low damage, has a very low cooldown, 100% chance of hitting",
+                               Weapons.CYBER_CALL_OF_THE_BLACK_KNIGHT: "Deals immense damage, has no cooldown, 100% chance of hitting, calls for help.",
+                               Weapons.DOOM: "Unknown."}
+    return weapon_description_dict[weapon]
+
+
+def get_weapon_pun(weapon):
+    weapon_pun_dict = {Weapons.GUN: "It's a gun.",
+                       Weapons.UDP_PACKET_MISSILE: "If you've ever wanted to shoot a UDP packet, now is your chance.",
+                       Weapons.SYN_ACK_CANNON: "So you'll never miss a shot.",
+                       Weapons.SYN_UZI: "Ever wanted to ddos someone? Well now you can.",
+                       Weapons.SHOTGUN: "It's a shotgun.",
+                       Weapons.MACHINE_GUN: "It's a machine gun.",
+                       Weapons.FIRE_WALL_FLAMETHROWER: "It's a fire wall, but it's also a flamethrower.",
+                       Weapons.LASER: "It's a laser.",
+                       Weapons.YOSSIZ_THE_DEVASTATOR: "Yossi will be proud.",
+                       Weapons.THE_LIGHTNING_BOLT: "You can say it's, electric.",
+                       Weapons.SYN_ACK_LASER: "Remember the syn uzi? and the lazer? well, when you combine both you get this. a massive ddos attack.",
+                       Weapons.CYBER_CALL_OF_THE_BLACK_KNIGHT: "You can call for help.",
+                       Weapons.DOOM: "You can't kill me. Destruction."}
+    return weapon_pun_dict[weapon]
 
 
 class Text:
@@ -371,7 +410,7 @@ class Bullet:
 
         if ACTIVE_HITBOXES:
             pygame.draw.rect(win, (0, 255, 0), (
-            self.x - progression - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2), 2)
+                self.x - progression - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2), 2)
 
     def collide(self, platforms):
         for p in platforms:
@@ -410,13 +449,13 @@ class Player:
         self.gravity = 14
         self.jump_height = -12
 
-        self.gravity = self.gravity*1000/250
-        self.jump_height = self.jump_height*1000/10
+        self.gravity = self.gravity * 1000 / 250
+        self.jump_height = self.jump_height * 1000 / 10
 
         self.jump_multiplier = 1
         self.terminal_y_velocity = 30
 
-        # Game variables
+        # Game mechanics variables
         self.max_health = MAX_HEALTH
         self.hp = self.max_health
         self.max_stamina = MAX_STAMINA
@@ -443,6 +482,12 @@ class Player:
         self.shoot_cooldown = 2
 
         self.world = "monologue"
+
+        # Item variables
+        self.weapon = Weapons.GUN
+        self.show_gun_description = False
+        self.machine_gun_cooldown_reduction_multiplier = 50
+        self.machine_gun_start_cooldown = 7
 
         # Animation files
         self.idle_sheet = pygame.image.load(idle_image_path)
@@ -630,8 +675,8 @@ class Player:
 
         if ACTIVE_HITBOXES:
             pygame.draw.rect(surface, (255, 0, 0), (
-            x_pos + self.side_padding, self.y + self.top_padding, self.image.get_width() - self.side_padding * 2,
-            self.image.get_height() - self.top_padding), 2)
+                x_pos + self.side_padding, self.y + self.top_padding, self.image.get_width() - self.side_padding * 2,
+                self.image.get_height() - self.top_padding), 2)
 
     def draw_relative(self, surface: pygame.Surface, progression: int):
         if self.animation_timer >= int(self.current_image.get_width() / self.frame_width) and not self.is_temp_dead:
@@ -662,15 +707,21 @@ class Player:
                                                     self.image.get_height() - self.top_padding), 2)
 
     def draw_stats(self, surface: pygame.Surface, font: pygame.font.Font, stage_width: int):
-        pygame.draw.rect(surface, (150, 150, 150), (surface.get_width() - 550, 0, 550, 100))
-        hp_text = font.render(f"HP:", True, (255, 0, 0))
-        stamina_text = font.render(f"Stamina:", True, (0, 0, 255))
+        bg = pygame.Surface((700, 120))
+        bg.fill((50, 50, 50))
+        bg.set_alpha(200)
+        surface.blit(bg, (surface.get_width() - 700, 0))
+        hp_text = font.render(f"HP: {int(self.hp)}", True, (255, 0, 0))
+        stamina_text = font.render(f"Stamina: {int(self.stamina)}", True, (173, 216, 230))
         surface.blit(hp_text, (surface.get_width() - hp_text.get_width() - 420, 10))
         surface.blit(stamina_text, (surface.get_width() - stamina_text.get_width() - 420, 40))
         pygame.draw.rect(surface, (255, 0, 0),
                          (surface.get_width() - 410, 10, int(self.hp * 400 / self.max_health), 20))
-        pygame.draw.rect(surface, (0, 0, 255),
+        pygame.draw.rect(surface, (173, 216, 230),
                          (surface.get_width() - 410, 40, int(self.stamina * 400 / self.max_stamina), 20))
+
+        gun_text = font.render(f"Gun: {get_weapon_name(self.weapon)}", True, (255, 255, 255))
+        surface.blit(gun_text, (surface.get_width() - gun_text.get_width() - 420, 70))
 
         if self.jump_boost:
             x_pos = (self.x - (stage_width - WIDTH)) if self.x > stage_width - WIDTH / 2 else (
@@ -680,6 +731,13 @@ class Player:
                 pygame.transform.scale(JUMP_BOOST_ICON, (60, 60)),
                 (x_pos + self.side_padding, self.y))  # above player
 
+        if self.show_gun_description:
+            pygame.draw.rect(surface, (50, 50, 50), (surface.get_width() - 410, 70, 400, 200))
+            description_text = SMALL_ARIEL.render(get_weapon_description(self.weapon), True, (255, 255, 255))
+            surface.blit(description_text, (surface.get_width() - 410, 70))
+            pun_text = SMALL_ARIEL.render(f"{get_weapon_pun(self.weapon)}", True, (255, 255, 255))
+            surface.blit(pun_text, (surface.get_width() - 410, 70 + description_text.get_height()))
+
     def collide(self, platforms, delta_time):
         found_bot = False
         for platform in platforms:
@@ -688,7 +746,7 @@ class Player:
                 continue
             elif isinstance(platform, Crystal) and platform.collide(self):
                 if platform.cooldown == -1:
-                    if isinstance(platform,JumpCrystal):
+                    if isinstance(platform, JumpCrystal):
                         if self.double_jump:
                             continue
                         self.double_jump = True
@@ -745,6 +803,26 @@ class Player:
         self.dash_image = pygame.image.fromstring(self.dash_image[1], self.dash_image[0], "RGBA")
         self.image = pygame.image.fromstring(self.image[1], self.image[0], "RGBA")
         self.current_image = pygame.image.fromstring(self.current_image[1], self.current_image[0], "RGBA")
+
+    def check_mouse_over_gun_slot(self, pos):
+        # surface.get_width() - gun_text.get_width() - 420, 70
+        if pos[0] >= 1920 - 700 and pos[0] <= 1920 and pos[1] >= 70 and pos[1] <= 140:
+            self.show_gun_description = True
+        else:
+            self.show_gun_description = False
+
+    def change_weapon(self, weapon):
+        self.weapon = weapon
+        if self.weapon == Weapons.GUN:
+            self.shoot_cooldown = 2
+        elif self.weapon == Weapons.SHOTGUN:
+            self.shoot_cooldown = 4
+        elif self.weapon == Weapons.FIRE_WALL_FLAMETHROWER:
+            self.shoot_cooldown = 0
+        elif self.weapon == Weapons.SYN_UZI:
+            self.shoot_cooldown = 1
+        elif self.weapon == Weapons.MACHINE_GUN:
+            self.shoot_cooldown = self.machine_gun_start_cooldown
 
 
 class Platform:
@@ -822,11 +900,13 @@ class JumpPad(Platform):
                                        (self.width, self.height)),
                 (self.x - background_progression, self.y))
 
+
 class Crystal(Image):
     def __init__(self, pos: tuple, img_path: str, cooldown_max: int):
         super().__init__(pos[0], pos[1], img_path, False)
-        self.image = pygame.transform.scale(self.image, (int(self.image.get_width() * 2), int(self.image.get_height() * 2)))
-        self.width = self.image.get_width()/4
+        self.image = pygame.transform.scale(self.image,
+                                            (int(self.image.get_width() * 2), int(self.image.get_height() * 2)))
+        self.width = self.image.get_width() / 4
         self.height = self.image.get_height()
         self.cooldown = -1
         self.cooldown_max = cooldown_max
@@ -838,14 +918,17 @@ class Crystal(Image):
             if self.cooldown == -1:
                 im = pygame.Surface.subsurface(self.image, (0, 0, self.width, self.height))
             else:
-                im = pygame.Surface.subsurface(self.image, (self.width + self.width*(int(self.cooldown*3)%3), 0, self.width, self.height))
-                pygame.draw.rect(surface, (255, 255, 255), (self.x - background_progression, self.y-15, self.width, 10), 2)
-                pygame.draw.rect(surface, (255, 255, 255), (self.x - background_progression, self.y-15, self.cooldown*self.width/self.cooldown_max, 10))
+                im = pygame.Surface.subsurface(self.image, (
+                    self.width + self.width * (int(self.cooldown * 3) % 3), 0, self.width, self.height))
+                pygame.draw.rect(surface, (255, 255, 255),
+                                 (self.x - background_progression, self.y - 15, self.width, 10), 2)
+                pygame.draw.rect(surface, (255, 255, 255), (
+                    self.x - background_progression, self.y - 15, self.cooldown * self.width / self.cooldown_max, 10))
             surface.blit(im, (self.x - background_progression, self.y))
 
     def update(self, dt):
         if self.cooldown != -1:
-            self.cooldown += dt*self.cooldown_mult
+            self.cooldown += dt * self.cooldown_mult
             if self.cooldown >= self.cooldown_max:
                 self.cooldown = -1
 
@@ -855,19 +938,23 @@ class Crystal(Image):
                 return True
         return False
 
+
 class JumpCrystal(Crystal):
     def __init__(self, pos: tuple):
         super().__init__(pos, "resources\\special\\jump-crystal.png", 5)
+
 
 class StaminaCrystal(Crystal):
     def __init__(self, pos: tuple):
         super().__init__(pos, "resources\\special\\stamina-crystal.png", 60)
         self.amount = 60
 
+
 class HealthCrystal(Crystal):
     def __init__(self, pos: tuple):
         super().__init__(pos, "resources\\special\\health-crystal.png", 120)
         self.amount = 60
+
 
 class HeightPortal(Image):
     def __init__(self, pos: tuple, width: int, height: int, destination: str, inverted: bool = False):
@@ -905,6 +992,12 @@ class HeightPortal(Image):
                 return True
         return False
 
+
+class Chest:
+    def __init__(self):
+        self.x = 0
+
+
 class Renderer:
 
     def __init__(self, screen: pygame.Surface, background_image: Image):
@@ -926,25 +1019,19 @@ class Renderer:
         self.world = None
 
         # Init global assets
-        self.load_global_assets(True)
+        self.load_global_assets()
 
-    def load_global_assets(self, use_convert_alpha: bool):
+    def load_global_assets(self):
         # Init global assets
-        global PIX_FONT, JUMP_PAD, JUMP_PAD_USED, JUMP_BOOST_ICON
+        global PIX_FONT, JUMP_PAD, JUMP_PAD_USED, JUMP_BOOST_ICON, SMALL_ARIEL
         PIX_FONT = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
-        if use_convert_alpha:
-            # Buildings
-            JUMP_PAD = pygame.image.load("resources/special/jump_pad_crystalized.png").convert_alpha()
-            JUMP_PAD_USED = pygame.image.load('resources/special/used_pad.png').convert_alpha()
+        SMALL_ARIEL = pygame.font.SysFont('Arial', 15)
+        # Buildings
+        JUMP_PAD = pygame.image.load("resources/special/jump_pad_crystalized.png").convert_alpha()
+        JUMP_PAD_USED = pygame.image.load('resources/special/used_pad.png').convert_alpha()
 
-            # Icons
-            JUMP_BOOST_ICON = pygame.image.load('resources/icons/jump_boost.png').convert_alpha()
-        else:
-            JUMP_PAD = pygame.image.load("resources/special/jump_pad_crystalized.png").convert()
-            JUMP_PAD_USED = pygame.image.load('resources/special/used_pad.png').convert()
-
-            # Icons
-            JUMP_BOOST_ICON = pygame.image.load('resources/icons/jump_boost.png').convert()
+        # Icons
+        JUMP_BOOST_ICON = pygame.image.load('resources/icons/jump_boost.png').convert_alpha()
 
     def render_all(self, mouse_pos: tuple):
         self.background.x = -self.background_progression
@@ -990,12 +1077,13 @@ class Renderer:
                                 sprite) and bullet.shooter_id != sprite.id and not sprite.is_temp_dead and sprite.dash_timer == -1:
                             if sprite.id == self.player_id:
                                 sprite.hp -= bullet.damage
+                                if sprite.hp <= 0:
+                                    sprite.hp = 0
                             self.bullets.remove(bullet)
                             removed = True
-                if bullet.x - bullet.orig_x > bullet.travel_max or bullet.x < 0 or bullet.x > \
-                        self.background.get_size()[0] or bullet.y < 0 or bullet.y > self.background.get_size()[
-                    1] or bullet.collide(self.platforms) and not removed:
-                    self.bullets.remove(bullet)
+                if bullet.x - bullet.orig_x > bullet.travel_max or bullet.x < 0 or bullet.x > self.background.get_size()[0] or bullet.y < 0 or bullet.y > self.background.get_size()[1] or bullet.collide(self.platforms) and not removed:
+                    if bullet in self.bullets:
+                        self.bullets.remove(bullet)
             for platform in self.platforms:
                 if isinstance(platform, Crystal):
                     platform.update(self.dt)
@@ -1040,9 +1128,12 @@ class Renderer:
     def clear_platforms(self):
         self.platforms.clear()
 
-    def add_bullet(self, x, y, vel_x, vel_y, x2, y2, rad, vel_mult=200):
-        self.bullets.append(Bullet(x, y, vel_x, vel_y, rad, (255, 255, 255), (x2, y2), 2000, self.player_id, vel_mult,
-                                   self.background_progression, self.world))
+    def add_bullet(self, client, x, y, vel_x, vel_y, x2, y2, rad, vel_mult=200, max_travel=2000, damage=10,
+                   color=(255, 255, 255)):
+        bull = Bullet(x, y, vel_x, vel_y, rad, color, (x2, y2), max_travel, self.player_id, vel_mult,
+                                   self.background_progression, self.world, damage)
+        self.bullets.append(bull)
+        client.send_bullet(bull)
 
     def clear_bullets(self):
         self.bullets.clear()
