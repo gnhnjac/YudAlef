@@ -817,7 +817,7 @@ class Player:
             self.shoot_cooldown = 2
         elif self.weapon == Weapons.SHOTGUN:
             self.shoot_cooldown = 4
-        elif self.weapon == Weapons.FIRE_WALL_FLAMETHROWER:
+        elif self.weapon == Weapons.FIRE_WALL_FLAMETHROWER or self.weapon == Weapons.LASER:
             self.shoot_cooldown = 0
         elif self.weapon == Weapons.SYN_UZI:
             self.shoot_cooldown = 1
@@ -912,6 +912,11 @@ class Crystal(Image):
         self.cooldown_max = cooldown_max
         self.cooldown_mult = 5
 
+        self.move_rate = 3.5
+        self.max_downing = 1
+        self.downing = random.randint(-self.max_downing, self.max_downing)
+        self.is_downing = True
+
     def render(self, surface: pygame.Surface, background_progression: int):
 
         if self.x + self.image.get_width() - background_progression > 0:
@@ -931,6 +936,23 @@ class Crystal(Image):
             self.cooldown += dt * self.cooldown_mult
             if self.cooldown >= self.cooldown_max:
                 self.cooldown = -1
+
+        if isinstance(self, JumpCrystal):
+            if self.is_downing:
+                self.downing += dt * self.move_rate
+                if abs(self.downing) >= self.max_downing:
+                    self.downing = self.max_downing
+                    self.is_downing = False
+                else:
+                    self.y += self.downing
+            else:
+                self.downing -= dt * self.move_rate
+                if abs(self.downing) >= self.max_downing:
+                    self.downing = -self.max_downing
+                    self.is_downing = True
+                else:
+                    self.y += self.downing
+
 
     def collide(self, player: Player):
         if player.x + player.side_padding <= self.x + self.width and player.x + player.image.get_width() - player.side_padding >= self.x:
@@ -1081,7 +1103,7 @@ class Renderer:
                                     sprite.hp = 0
                             self.bullets.remove(bullet)
                             removed = True
-                if bullet.x - bullet.orig_x > bullet.travel_max or bullet.x < 0 or bullet.x > self.background.get_size()[0] or bullet.y < 0 or bullet.y > self.background.get_size()[1] or bullet.collide(self.platforms) and not removed:
+                if abs(bullet.x-bullet.orig_x) > bullet.travel_max or abs(bullet.y-bullet.orig_y) > bullet.travel_max or  bullet.x < 0 or bullet.x > self.background.get_size()[0] or bullet.y < 0 or bullet.y > self.background.get_size()[1] or bullet.collide(self.platforms) and not removed:
                     if bullet in self.bullets:
                         self.bullets.remove(bullet)
             for platform in self.platforms:

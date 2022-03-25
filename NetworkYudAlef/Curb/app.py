@@ -69,7 +69,7 @@ gameover = None
 # arena assets
 arena = Image(0, 0, "resources\\images\\arena-repeating-bg.png", True, None, None, True, 4000, 1080)
 
-guns = [Weapons.GUN, Weapons.SHOTGUN, Weapons.SYN_UZI, Weapons.FIRE_WALL_FLAMETHROWER, Weapons.MACHINE_GUN]
+guns = [Weapons.GUN, Weapons.SHOTGUN, Weapons.SYN_UZI, Weapons.FIRE_WALL_FLAMETHROWER, Weapons.MACHINE_GUN, Weapons.LASER]
 weapon_index = 0
 
 renderer = Renderer(screen, title)
@@ -310,6 +310,21 @@ while running:
                 if player.shoot_cooldown < 0.5:
                     player.shoot_cooldown = 0.5
                 player.shoot_timer = 0
+            elif player.weapon == Weapons.LASER:
+                d = None
+                for i in range(100):
+                    dx = m_pos[0] - (x_pos + player.image.get_width() / 2)
+                    dy = m_pos[1] - (player.y + player.image.get_height() / 2)
+
+                    direction = pygame.math.Vector2(dx, dy).normalize()
+                    d = direction
+                    renderer.add_bullet(cl, player.x + player.image.get_width() / 2 + direction[0]*i*5, player.y + player.image.get_height() / 2 + direction[1]*i*5, x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 2, m_pos[0], m_pos[1], 10, 1000, 10, 0, (255, 0, 0))
+
+                renderer.add_bullet(cl, player.x + player.image.get_width() / 2 + d[0] * 105 * 5,
+                                    player.y + player.image.get_height() / 2 + d[1] * 105 * 5,
+                                    x_pos + player.image.get_width() / 2, player.y + player.image.get_height() / 2,
+                                    m_pos[0], m_pos[1], 10, 1000, 10, 0.3, (220, 0, 0))
+
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:
         player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png",
