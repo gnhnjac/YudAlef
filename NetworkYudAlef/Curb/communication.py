@@ -9,7 +9,6 @@ import AES
 from uuid import uuid4
 from tcp_by_size import *
 
-
 class DH:
 
     @staticmethod
@@ -118,6 +117,14 @@ class Client:
             id = msg[0].decode()
             wrld = msg[1].decode()
             self.renderer.get_player_by_id(id).world = wrld
+        elif instruction == "DEAD":
+            id = msg.decode()
+            self.renderer.get_player_by_id(id).is_temp_dead = True
+        elif instruction == "DASH":
+            id = msg.decode()
+            p = self.renderer.get_player_by_id(id)
+            p.current_image = p.dash_image
+            p.dash_timer = 0
         else:
             print("Unknown instruction")
 
@@ -201,7 +208,7 @@ class Client:
         self.send(b"BULL#" + pickle.dumps(bullet))
 
     def send_dead(self):
-        self.send(b"DEAD")
+        self.send(b"DEAD#" + str(self.renderer.player_id).encode())
 
     def send_revived(self):
         self.send(b"REVD")
@@ -209,6 +216,8 @@ class Client:
     def send_world(self):
         self.send(b"WORL#" + str(self.renderer.player_id).encode() +b"#" + self.renderer.world.encode())
 
+    def send_dash(self):
+        self.send(b"DASH#" + str(self.renderer.player_id).encode())
 
 class Server:
     def __init__(self, host, port, max_connections):
@@ -333,14 +342,16 @@ class Server:
         elif instruction == "DEAD":
             self.lobby[conn].player.is_dead = True
             gameover = True
-            for conn in self.lobby:
-                payload = self.lobby[conn]
+            for connection in self.lobby:
+                payload = self.lobby[connection]
                 if not payload.player.is_dead:
                     gameover = False
                     break
-
             if gameover:
                 self.broadcast_game_over()
+            else:
+                self.broadcast_to_lobby(data, self.lobby[conn].player.id)
+
         elif instruction == "REVD":
             self.lobby[conn].player.is_dead = False
         elif instruction == "BULL":
@@ -351,6 +362,8 @@ class Server:
             self.broadcast_lobby_update()
         elif instruction == "WORL":
             self.broadcast_to_lobby(data, self.lobby[conn].player.id)
+        elif instruction == "DASH":
+            self.broadcast_to_lobby(data,self.lobby[conn].player.id)
         else:
             print("Unknown instruction")
 

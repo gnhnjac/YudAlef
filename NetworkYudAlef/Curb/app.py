@@ -12,12 +12,16 @@ config = ConfigParser()
 config.read('conf.ini')
 WIDTH = int(config.get('settings', 'WINDOW_WIDTH'))
 HEIGHT = int(config.get('settings', 'WINDOW_HEIGHT'))
+IS_FULLSCREEN = config.getboolean('settings', 'FULLSCREEN')
 # audio setup
 mixer = MusicManager(['resources/music/' + music for music in os.listdir('resources/music')], 0.1)
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+if IS_FULLSCREEN:
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+else:
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
 # assets
@@ -96,6 +100,7 @@ def init_monologue(fade_in=True):
     global renderer
     global player
     renderer.world = "monologue"
+    renderer.orig_background_progression = 0
     renderer.background_progression = 0
     renderer.clear_platforms()
     renderer.clear_children()
@@ -107,7 +112,15 @@ def init_monologue(fade_in=True):
     else:
         renderer.replace_bg(monologue)
     player.orig_x, player.orig_y = player.x, player.y
+    renderer.add_imaginary_platform(JumpCrystal((2522, 648)))
+    renderer.add_imaginary_platform(JumpCrystal((2759, 648)))
+    renderer.add_imaginary_platform(JumpCrystal((2966, 648)))
+    renderer.add_imaginary_platform(JumpCrystal((3438, 658)))
+    renderer.add_imaginary_platform(JumpCrystal((4353, 653)))
+    renderer.add_imaginary_platform(JumpCrystal((5105, 375)))
+    renderer.add_imaginary_platform(JumpCrystal((5961, 621)))
     renderer.add_platform((0, h - 255), 2285, 255)
+    renderer.add_platform((0, h - 170), monologue.get_size()[0], 170)
     renderer.add_platform((3259, h - 255), 148, 255)
     renderer.add_platform((3523, h - 486), 148, 486)
     renderer.add_platform((3919, h - 387), 313, 387)
@@ -131,6 +144,7 @@ def init_arena():
     player.x = 4000-200
     player.orig_x = player.x
     player.orig_y = player.y
+    renderer.orig_background_progression = 2094
     renderer.background_progression = 2094
     renderer.replace_bg(arena)
     renderer.add_child(framerate_text)
@@ -138,11 +152,20 @@ def init_arena():
     renderer.add_platform((0, h - 255), 4000, 255, (0,255,0))
     renderer.add_platform((1000, h/2-100), 700, 50, (0,255,0))
     renderer.add_platform((0, h/2-100), 500, 50, (241,145,155))
+    renderer.add_imaginary_platform(JumpCrystal((700, h/2-150)))
     renderer.add_platform((800, h/2-400), 1000, 50, (0,255,0))
     renderer.add_platform((3000, h/2-300), 600, 50, (0,0,255))
     renderer.add_platform((2500, h/2-200), 400, 50, (255,0,0))
+    renderer.add_imaginary_platform(JumpCrystal((2300, h/2-150)))
     renderer.add_child(JumpPad((2000, h - 255 - 40), 115, 40, 1.7))
+    renderer.add_imaginary_platform(JumpCrystal((1900, h/2-350)))
     renderer.add_child(JumpPad((500, h - 255 - 40), 115, 40, 1.7))
+    renderer.add_imaginary_platform(StaminaCrystal((3000, h-255-100)))
+    renderer.add_imaginary_platform(StaminaCrystal((1200, h-255-100)))
+    renderer.add_imaginary_platform(StaminaCrystal((1000, 140-100)))
+    renderer.add_imaginary_platform(HealthCrystal((300, 440-100)))
+    renderer.add_imaginary_platform(HealthCrystal((3200, 240-100)))
+    renderer.add_imaginary_platform(HealthCrystal((1200, 440-100)))
 
 
 def init_settings():
@@ -214,6 +237,8 @@ while running:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     player.dash(renderer.dt)
+                    if not player.is_temp_dead:
+                        cl.send_dash()
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_a:
                     player.move("stay")
@@ -260,16 +285,16 @@ while running:
         if keys[pygame.K_d]:
             player.move("right")
         if keys[pygame.K_w]:
-            player.jump()
+            player.jump(renderer.dt)
         if WIDTH / 2 < player.x < renderer.background.get_size()[0] - WIDTH / 2:
             renderer.background_progression = player.x - WIDTH / 2
-        if player.y + player.image.get_height() > h - 170 or player.hp <= 0:
+        if player.y + player.image.get_height() >= h - 170 or player.hp <= 0 and not player.is_temp_dead:
             player.is_temp_dead = True
             cl.send_dead()
 
     if player.revived:
         player.revived = False
-        renderer.background_progression = 0
+        renderer.background_progression = renderer.orig_background_progression
         cl.send_revived()
 
     if renderer.game_over is True:

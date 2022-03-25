@@ -52,7 +52,10 @@ def send_with_size(sock, bdata):
     header_data = str(len(bdata)).zfill(size_header_size - 1) + "|"
 
     bytea = bytearray(header_data,encoding='utf8') + bdata
-    sock.send(bytea)
+    try:
+        sock.send(bytea)
+    except:
+        sock.close()
     if  TCP_DEBUG and  len_data > 0:
         print ("\nSent(%s)>>>" % (len_data,), end='')
         print ("%s"%(bytea[:min(len(bytea),LEN_TO_PRINT)],))

@@ -4,6 +4,12 @@ import wx
 
 from communication import *
 
+from configparser import ConfigParser
+config = ConfigParser()
+config.read('conf.ini')
+MAX_PLAYERS = int(config.get('settings', "MAX_PLAYERS"))
+
+
 APP_SIZE_X = 300
 APP_SIZE_Y = 500
 
@@ -18,7 +24,7 @@ class ServerApp(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.close, id=1)
         self.Bind(wx.EVT_BUTTON, self.start, id=2)
 
-        self.s = Server('0.0.0.0', 5555, 5)
+        self.s = Server('0.0.0.0', 5555, MAX_PLAYERS)
         sys.stdout = self.log
 
         self.Centre()
