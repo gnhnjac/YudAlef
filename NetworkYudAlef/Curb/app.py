@@ -13,6 +13,7 @@ config.read('conf.ini')
 WIDTH = int(config.get('settings', 'WINDOW_WIDTH'))
 HEIGHT = int(config.get('settings', 'WINDOW_HEIGHT'))
 IS_FULLSCREEN = config.getboolean('settings', 'FULLSCREEN')
+REFRESH_RATE = min(int(config.get('settings', 'REFRESH_RATE')), 60)
 # audio setup
 mixer = MusicManager(['resources/music/' + music for music in os.listdir('resources/music')], 0.1)
 
@@ -62,6 +63,7 @@ choice = random.choice(players)
 monologue = Image(0, 0, "resources\\images\\monologue.png", True)
 player = Player(f"resources\\sprites\\{choice}_Thin\\{choice}_idle.png", f"resources\\sprites\\{choice}_Thin\\{choice}_run.png",
                 f"resources\\sprites\\{choice}_Thin\\{choice}_jump.png",f"resources\\sprites\\{choice}_Thin\\{choice}_death.png",f"resources\\sprites\\{choice}_Thin\\{choice}_dash.png", 32, 32, 48, (w / 2, h - 500), 500)
+
 # gameover assets
 gameover_button = Button(0, 0, 400, 100, "Restart", (0, 0, 0), pix_font, (45, 115, 178), (8, 96, 168), (0, 0, 0), 0)
 gameover = None
@@ -123,6 +125,7 @@ def init_monologue(fade_in=True):
     renderer.add_imaginary_platform(JumpCrystal((4353, 653)))
     renderer.add_imaginary_platform(JumpCrystal((5105, 375)))
     renderer.add_imaginary_platform(JumpCrystal((5961, 621)))
+    renderer.add_imaginary_platform(JumpCrystal((4732, 317)))
     renderer.add_platform((0, h - 255), 2285, 255)
     renderer.add_platform((0, h - 170), monologue.get_size()[0], 170)
     renderer.add_platform((3259, h - 255), 148, 255)
@@ -138,6 +141,7 @@ def init_monologue(fade_in=True):
     renderer.add_platform((6328, 0), 280, 462)
     renderer.add_child(framerate_text)
     renderer.add_imaginary_platform(HeightPortal((0, 0), None, None, "arena"))
+    renderer.add_imaginary_platform(HeightPortal((monologue.get_size()[0]-80, 0), None, None, "level_1", True))
 
 def init_arena():
     global renderer
@@ -170,7 +174,6 @@ def init_arena():
     renderer.add_imaginary_platform(HealthCrystal((300, 440-100)))
     renderer.add_imaginary_platform(HealthCrystal((3200, 240-100)))
     renderer.add_imaginary_platform(HealthCrystal((1200, 440-100)))
-
 
 def init_settings():
     renderer.add_child(volume_slider)
@@ -382,11 +385,13 @@ while running:
                 init_arena()
             if player.world == "monologue":
                 init_monologue(False)
+            if "level" in player.world:
+                cl.send_level(player.world.split("_")[1])
             print(player.world)
 
     pygame.display.flip()
     framerate_text.set_text("FPS: " + str(int(clock.get_fps())))
-    clock.tick(60)
+    clock.tick(REFRESH_RATE)
     renderer.update_dt()
 
 pygame.quit()

@@ -8,6 +8,7 @@ from AES import *
 import AES
 from uuid import uuid4
 from tcp_by_size import *
+from utils import Platform, HealthCoord, StaminaCoord, JumpCoord, JumpPadCoord
 
 class DH:
 
@@ -125,6 +126,8 @@ class Client:
             p = self.renderer.get_player_by_id(id)
             p.current_image = p.dash_image
             p.dash_timer = 0
+        elif instruction == "LEVL":
+            self.renderer.load_level(msg)
         else:
             print("Unknown instruction")
 
@@ -219,6 +222,9 @@ class Client:
     def send_dash(self):
         self.send(b"DASH#" + str(self.renderer.player_id).encode())
 
+    def send_level(self, level):
+        self.send(b"LEVL#" + level.encode())
+
 class Server:
     def __init__(self, host, port, max_connections):
 
@@ -242,6 +248,7 @@ class Server:
         # Game variables
         self.max_conns = max_connections
         self.lobby = {}
+        self.levels = []
 
     def accept_connections(self):
         """
@@ -364,6 +371,9 @@ class Server:
             self.broadcast_to_lobby(data, self.lobby[conn].player.id)
         elif instruction == "DASH":
             self.broadcast_to_lobby(data,self.lobby[conn].player.id)
+        elif instruction == "LEVL":
+            num = int(data[5:].decode())
+            self.generate_level_and_send(num, conn)
         else:
             print("Unknown instruction")
 
@@ -384,3 +394,35 @@ class Server:
 
     def broadcast_game_over(self):
         self.broadcast_to_lobby(b"GOVR")
+
+    def generate_level_and_send(self, num, conn):
+        """
+        Generates a level and sends it to all clients
+        :return:
+        """
+        if num > len(self.levels):
+            level = []
+            level_addables = []
+            level.append(Platform((0, 1080 - 170), 7000, 170, (0,255,0)))
+            level.append(Platform((0, 1080-255), 600, 255,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+            current_x =600
+            while current_x < 7000:
+                rx = random.randint(200, 400)
+                sx = current_x + rx
+                y = random.randint(200, 1080-200)
+                w = random.randint(100, 500)
+                level.append(Platform((sx, y), w, 200,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+                if abs(y - level[-2].y) > 200 or abs(sx - level[-2].x) > 200:
+                    level_addables.append(JumpCoord(sx -rx/2 , y - (y-level[-2].y)/2))
+                if abs(y - level[-2].y) > 300:
+                    level_addables.append(JumpPadCoord(level[-2].x + level[-2].width/2 - 115/2, level[-2].y - 40))
+                current_x = sx + w
+            level.append(Platform((7000-600, 1080-255), 600, 255,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+            level.extend(level_addables)
+            self.levels.append(level)
+
+        data = b"LEVL#"
+        for platform in self.levels[num-1]:
+            pickled = pickle.dumps(platform)
+            data += len(pickled).to_bytes(8, "big") + b"|" + pickled
+        send_with_size(conn, data)

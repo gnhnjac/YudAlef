@@ -1,3 +1,4 @@
+import pickle
 import random
 import pygame
 from enum import Enum
@@ -11,7 +12,7 @@ HEIGHT = int(config.get('settings', 'WINDOW_HEIGHT'))
 MAX_STAMINA = int(config.get('settings', 'MAX_STAMINA'))
 MAX_HEALTH = int(config.get('settings', "MAX_HEALTH"))
 ACTIVE_HITBOXES = config.getboolean('settings', 'ACTIVE_HITBOXES')
-
+INFINITE_JUMP_DASH = config.getboolean('settings', 'INFINITE_JUMP_DASH')
 # Global Assets
 # Fonts
 PIX_FONT = None  # pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
@@ -23,7 +24,7 @@ JUMP_PAD_USED = None  # pygame.image.load('resources/special/used_pad.png').conv
 
 # Icons
 JUMP_BOOST_ICON = None  # pygame.image.load('resources/icons/jump_boost.png').convert_alpha()
-
+PARALLAX = None
 
 # Notes to self:
 # - Add Dori's idea to add an electricity bar which always decreases and is only replenished by killing enemies and gaining orbs
@@ -44,6 +45,25 @@ def random_name():
         names = f.read().splitlines()
     return random.choice(names)
 
+class Coordinate:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+class HealthCoord(Coordinate):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+class StaminaCoord(Coordinate):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+class JumpCoord(Coordinate):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+class JumpPadCoord(Coordinate):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.jump_strength = 1.7
+        self.width = 115
+        self.height = 40
 
 class Checkbox:
     def __init__(self, surface, x, y, color, caption, outline_color, check_color, font, font_color,
@@ -376,8 +396,7 @@ class Image:
 
 class Bullet:
 
-    def __init__(self, x, y, for_vel_x, for_vel_y, radius, color, pos, travel_max, shooter_id, magnitude=200,
-                 bg_prog=None, world=None, damage=10):
+    def __init__(self, x, y, for_vel_x, for_vel_y, radius, color, pos, travel_max, shooter_id, magnitude=200,world=None, damage=10):
         self.x = x
         self.y = y
         self.orig_x, self.orig_y = x, y
@@ -394,8 +413,6 @@ class Bullet:
 
         self.vel_x = direction[0]
         self.vel_y = direction[1]
-
-        self.bg_prog = bg_prog
 
         self.world = world
 
@@ -548,6 +565,8 @@ class Player:
             self.y_velocity += self.gravity * delta_time
             if self.y_velocity > self.terminal_y_velocity:
                 self.y_velocity = self.terminal_y_velocity
+            if self.y_velocity < -self.terminal_y_velocity:
+                self.y_velocity = -self.terminal_y_velocity
         self.x += self.speed * delta_time
         if self.speed != 0 and self.stamina - 1 * delta_time > 0:
             self.stamina -= 2 * delta_time
@@ -619,14 +638,16 @@ class Player:
     def jump(self, delta_time):
         if self.is_temp_dead:
             return
-        if (not self.is_falling or (self.double_jump and self.y_velocity > 0)) and self.stamina - 10 > 0:
+        if (((not self.is_falling) or self.double_jump) and self.stamina - 5 > 0) or INFINITE_JUMP_DASH:
             self.current_image = self.jump_sheet
             self.y_velocity = self.jump_height * self.jump_multiplier * delta_time
             self.jump_multiplier = 1
             self.jump_boost = False
             self.double_jump = False
             self.is_falling = True
-            self.stamina -= 10
+            self.stamina -= 5
+            if self.stamina < 0:
+                self.stamina = 0
 
     def stop_fall(self, y: int):
         self.is_falling = False
@@ -641,9 +662,11 @@ class Player:
     def dash(self, delta_time: float):
         if self.is_temp_dead:
             return
-        if self.stamina - 20 > 0:
-            self.stamina -= 20
-            self.x += self.speed * self.dash_mult * delta_time
+        if self.stamina - 15 > 0 or INFINITE_JUMP_DASH:
+            self.stamina -= 15
+            if self.stamina < 0:
+                self.stamina = 0
+            self.x += self.speed * self.dash_mult * delta_time + 0 if not INFINITE_JUMP_DASH else self.speed
             self.dash_timer = 0
 
     def draw(self, surface: pygame.Surface, stage_width: int):
@@ -843,7 +866,7 @@ class Platform:
         return (self.x + self.width >= x >= self.x) and (self.y <= y <= self.y + self.height)
 
     def render(self, surface: pygame.Surface, background_progression: int):
-        if self.color is not None and self.x + self.width - background_progression > 0:
+        if self.color is not None and self.x + self.width - background_progression > 0 and self.x - background_progression < surface.get_width():
             pygame.draw.rect(surface, self.color, (self.x - background_progression, self.y, self.width, self.height))
 
         if ACTIVE_HITBOXES:
@@ -892,7 +915,7 @@ class JumpPad(Platform):
         self.is_finite = is_finite
 
     def render(self, surface: pygame.Surface, background_progression: int):
-        if self.x + self.width - background_progression > 0 and (
+        if self.x + self.width - background_progression > 0 and self.x - background_progression < surface.get_width() and (
                 (self.is_finite and not self.used) or not self.is_finite):
             surface.blit(
                 pygame.transform.scale((JUMP_PAD if
@@ -919,7 +942,7 @@ class Crystal(Image):
 
     def render(self, surface: pygame.Surface, background_progression: int):
 
-        if self.x + self.image.get_width() - background_progression > 0:
+        if self.x + self.image.get_width() - background_progression > 0 and self.x - background_progression < surface.get_width():
             if self.cooldown == -1:
                 im = pygame.Surface.subsurface(self.image, (0, 0, self.width, self.height))
             else:
@@ -1005,7 +1028,7 @@ class HeightPortal(Image):
         else:
             text_rect.center = (self.x - background_progression, self.y + self.height / 2)
         surface.blit(text, text_rect)
-        if self.x + self.image.get_width() - background_progression > 0:
+        if self.x + self.image.get_width() - background_progression > 0 and self.x - background_progression < WIDTH:
             surface.blit(self.image, (self.x - background_progression, self.y))
 
     def collide(self, player: Player):
@@ -1045,7 +1068,7 @@ class Renderer:
 
     def load_global_assets(self):
         # Init global assets
-        global PIX_FONT, JUMP_PAD, JUMP_PAD_USED, JUMP_BOOST_ICON, SMALL_ARIEL
+        global PIX_FONT, JUMP_PAD, JUMP_PAD_USED, JUMP_BOOST_ICON, SMALL_ARIEL, PARALLAX
         PIX_FONT = pygame.font.Font('resources\\fonts\\yoster-island\\yoster.ttf', 25)
         SMALL_ARIEL = pygame.font.SysFont('Arial', 15)
         # Buildings
@@ -1054,6 +1077,7 @@ class Renderer:
 
         # Icons
         JUMP_BOOST_ICON = pygame.image.load('resources/icons/jump_boost.png').convert_alpha()
+        PARALLAX = parallax = Image(0, 0, "resources\\images\\arena-repeating-bg.png", True, None, None, True, 7000, 1080)
 
     def render_all(self, mouse_pos: tuple):
         self.background.x = -self.background_progression
@@ -1152,8 +1176,7 @@ class Renderer:
 
     def add_bullet(self, client, x, y, vel_x, vel_y, x2, y2, rad, vel_mult=200, max_travel=2000, damage=10,
                    color=(255, 255, 255)):
-        bull = Bullet(x, y, vel_x, vel_y, rad, color, (x2, y2), max_travel, self.player_id, vel_mult,
-                                   self.background_progression, self.world, damage)
+        bull = Bullet(x, y, vel_x, vel_y, rad, color, (x2, y2), max_travel, self.player_id, vel_mult, self.world, damage)
         self.bullets.append(bull)
         client.send_bullet(bull)
 
@@ -1166,7 +1189,7 @@ class Renderer:
 
     def update_dt(self):
         t = pygame.time.get_ticks()
-        self.dt = (t - self.prev_time) / 1000.0
+        self.dt = min((t - self.prev_time) / 1000.0, 1/60)
         self.prev_time = t
 
     def load_lobby(self, lobby):
@@ -1199,6 +1222,44 @@ class Renderer:
             if child == c:
                 return True
         return False
+
+    def load_level(self, msg):
+        player = self.get_player()
+        self.replace_bg(PARALLAX)
+        self.clear_children()
+        self.clear_platforms()
+        self.clear_bullets()
+        player.x = 300
+        player.y = 1080 - 255 - player.image.get_height()
+        player.orig_x = player.x
+        player.orig_y = player.y
+        self.orig_background_progression = 0
+        self.background_progression = 0
+        while len(msg) > 0:
+            obj_len = int.from_bytes(msg[:8], byteorder='big')
+            msg = msg[9:]
+            plat = pickle.loads(msg[:obj_len])
+            if isinstance(plat, JumpPad):
+                self.add_child(plat)
+            else:
+                if isinstance(plat, JumpCoord):
+                    plat = JumpCrystal((plat.x, plat.y))
+                elif isinstance(plat, StaminaCoord):
+                    plat = StaminaCrystal((plat.x, plat.y))
+                elif isinstance(plat, HealthCoord):
+                    plat = HealthCrystal((plat.x, plat.y))
+                elif isinstance(plat, JumpPadCoord):
+                    plat = JumpPad((plat.x, plat.y), plat.width, plat.height, plat.jump_strength)
+                else:
+                    print(type(plat))
+                if isinstance(plat, JumpPad):
+                    self.add_child(plat)
+                else:
+                    self.add_imaginary_platform(plat)
+            msg = msg[obj_len:]
+        self.add_imaginary_platform(HeightPortal((7000-80, 0), None, None, f"level_{str(int(self.world[-1])+1)}", True))
+        self.add_imaginary_platform(HeightPortal((0, 0), None, None, f"monologue" if self.world == "level_1" else f"level_{str(int(self.world[-1])-1)}", False))
+
 
 
 class MusicManager:
