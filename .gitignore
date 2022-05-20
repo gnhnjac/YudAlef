@@ -509,3 +509,8 @@ xtreme/
 
 # reverse eng engine dir
 ida76sp1/
+
+# ai img dir
+all_imgs/
+test/
+train/

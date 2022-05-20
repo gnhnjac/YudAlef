@@ -6,17 +6,20 @@ import numpy as np
 from threading import Thread
 import cv2
 
-CV_2_THRESHHOLD_MIN = 170#127
+CV_2_THRESHHOLD_MIN = 80
 
-x_train, y_train = extract_training_samples('digits')
-x_test, y_test = extract_test_samples('digits')
-
+x_train_base, y_train = extract_training_samples('digits')
+x_test_base, y_test = extract_test_samples('digits')
+x_train = np.ndarray((x_train_base.shape[0], 28, 28), dtype=np.float32)
+x_test = np.ndarray((x_test_base.shape[0], 28, 28), dtype=np.float32)
 # # thin out image lines with opencv
-# for i in range(len(x_train)):
-#     x_train[i] = cv2.threshold(x_train[i], CV_2_THRESHHOLD_MIN, 255, cv2.THRESH_BINARY)[1]
+for i in range(len(x_train)):
+    x_train[i] = np.asarray(x_train_base[i])
+    x_train[i] = cv2.threshold(x_train[i], CV_2_THRESHHOLD_MIN, 255, cv2.THRESH_BINARY)[1]
 
-# for i in range(len(x_test)):
-#     x_test[i] = cv2.threshold(x_test[i], CV_2_THRESHHOLD_MIN, 255, cv2.THRESH_BINARY)[1]
+for i in range(len(x_test)):
+    x_test[i] = np.asarray(x_test_base[i])
+    x_test[i] = cv2.threshold(x_test[i], CV_2_THRESHHOLD_MIN, 255, cv2.THRESH_BINARY)[1]
 
 x_train, x_test = x_train / 255.0, x_test / 255.0 # convert color range from 0-255 to 0-1 (normalization)
 # save all x_train and y_train to a folder called "mnist"
