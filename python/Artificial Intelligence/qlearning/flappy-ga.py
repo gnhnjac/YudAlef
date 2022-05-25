@@ -24,9 +24,15 @@ def remap( x,  in_min,  in_max,  out_min,  out_max):
 
 
 # classes
-class Bird:
+class Bird(Individual):
 
     def __init__(self, brain=None):
+
+        if brain is None:
+            super().__init__(NeuralNetwork(5,8,2))
+        else:
+            super().__init__(brain)
+
         self.x = 60
         self.y = HEIGHT/2
         self.velocity = 0
@@ -34,13 +40,6 @@ class Bird:
         self.size = BIRD_RADIUS
         self.color = (255, 255, 255)
         self.jump_height = -MAX_VELOCITY
-
-        if brain is None:
-            self.model = NeuralNetwork(5,8,2)
-        else:
-            self.model = brain.copy()
-
-        self.score = 0
 
     
     def jump(self):
@@ -57,7 +56,7 @@ class Bird:
         if self.y < 0:
             self.y = 0
             self.velocity = 0
-        self.score += 1
+        self.fitness += 1
     
     def draw(self, win):
         pygame.draw.circle(win, self.color, (self.x, self.y), self.size)
@@ -69,18 +68,6 @@ class Bird:
                     if self.y + self.size > pipe.y and self.y - self.size < pipe.y + pipe.height:
                         return True
         return False
-    
-    def predict(self, inputs):
-        return self.model.predict(inputs)
-    
-    def crossover(self, other):
-        return Bird(self.model.crossover(other.model))
-
-    def mutate(self, rate):
-        self.model.mutate(rate)
-
-    def copy(self):
-        return Bird(self.model)
 
 class Pipe:
 
@@ -97,16 +84,9 @@ class Pipe:
     def draw(self, win):
         pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.height))
 
-def fit(birds):
-    s = 0
-    for bird in birds:
-        bird.score = bird.score**2
-
-    for bird in birds:
-        s += bird.score
-    
-    for bird in birds:
-        bird.score /= s
+def fit(brains):
+    for brain in brains:
+        brain.fitness = brain.fitness**2
 
 pygame.init()
 
@@ -115,7 +95,7 @@ pygame.display.set_caption("Flappy Bird")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("comicsans", 30)
 
-ga = GeneticAlgorithm(BIRD_COUNT, Bird, 0.1, fit, 3)
+ga = GeneticAlgorithm(BIRD_COUNT, Bird, 0.1, fit, True, 3)
 
 pipes = []
 birds = ga.indentical_population()
@@ -183,7 +163,9 @@ while not done:
             vel = remap(bird.velocity, -MAX_VELOCITY, MAX_VELOCITY, 0, 1)
             inputs = np.array([[y, dist, top_y, bot_y, vel]])
 
-            if bird.predict(inputs)[0][0] > bird.predict(inputs)[0][1]:
+            prediction = bird.predict(inputs)[0]
+
+            if prediction[0] > prediction[1]:
                 bird.jump()
 
             bird.update()

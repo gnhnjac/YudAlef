@@ -44,7 +44,7 @@ class NeuralNetwork:
         for weight_grp in [self.weights_ih, self.weights_ho, self.bias_h, self.bias_o]:
             for weight in weight_grp:
                 if np.random.rand() < rate:
-                    weight += np.random.rand() * 2 - 1
+                    weight += np.random.normal()#np.random.rand() * 2 - 1
 
         # mutate entire weights
 

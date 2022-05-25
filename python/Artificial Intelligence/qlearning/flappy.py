@@ -1,9 +1,7 @@
-from asyncio.subprocess import PIPE
 import random
 import pygame
 import numpy as np
 from NN import *
-import copy
 
 HEIGHT = 480
 WIDTH = 640
