@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-  <g fill="none" fill-rule="evenodd">
-    <rect width="20" height="20"/>
-    <g fill="#FFF" transform="translate(6 5)">
-      <rect width="3" height="10" rx="1"/>
-      <rect width="3" height="10" x="5" rx="1"/>
-    </g>
-  </g>
-</svg>

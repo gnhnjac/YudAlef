@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="82" height="90" viewBox="0 0 82 90">
-  <g fill="none" fill-rule="evenodd" transform="translate(2 2)">
-    <path stroke="#3A4A69" stroke-dasharray="3 5" stroke-linecap="round" stroke-width="2" d="M71.9852814,83.2781746 C37.9926407,87.2781746 1.80300219e-13,57.8055183 8.24016419,0.411475374"/>
-    <polyline stroke="#3A4A69" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" points="2.278 13.278 2.278 2.278 13.278 2.278" transform="rotate(45 7.778 7.778)"/>
-    <circle cx="75.985" cy="83.278" r="4" fill="#BAD104"/>
-  </g>
-</svg>
