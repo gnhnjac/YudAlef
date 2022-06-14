@@ -101,3 +101,44 @@ class NeuralNetwork:
         output = sigmoid(output)
 
         return output
+
+    def backpropagate(self, inputs, targets):
+
+        layer = inputs
+
+        for i in range(len(self.network)):
+            layer = np.dot(layer, self.network[i])
+            layer = np.add(layer, self.hbiases[i])
+            layer = sigmoid(layer)
+
+        output = np.dot(layer, self.weights_ho)
+        output = np.add(output, self.bias_o)
+        output = sigmoid(output)
+
+        error = targets - output
+        error = error * dsigmoid(output)
+        delta_o = error
+        delta_h = np.dot(delta_o, self.weights_ho.T)
+        delta_h = delta_h * dsigmoid(layer)
+
+        self.weights_ho += np.dot(layer.T, delta_o)
+        self.bias_o += delta_o
+
+        for i in range(len(self.network)):
+            self.hbiases[i] += np.dot(np.ones((1, len())), delta_h[i])
+            self.network[i] += np.dot(layer.T, delta_h[i])
+
+
+
+
+if __name__ == "__main__":
+
+    n = NeuralNetwork(2, [3], 1)
+
+    # train on xor problem
+    for i in range(10000):
+        n.backpropagate([0, 0], 0)
+        n.backpropagate([0, 1], 1)
+        n.backpropagate([1, 0], 1)
+        n.backpropagate([1, 1], 0)
+    print(n.predict([0, 0]))

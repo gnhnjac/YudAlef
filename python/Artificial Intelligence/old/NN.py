@@ -64,5 +64,5 @@ class NeuralNetwork:
         ih_deltas = np.dot(inputs[np.newaxis].T, ih_gradients)
         self.weights_ih += ih_deltas
 
-        self.bias_h +=  ih_gradients
+        self.bias_h += ih_gradients
         self.bias_o += ho_gradients

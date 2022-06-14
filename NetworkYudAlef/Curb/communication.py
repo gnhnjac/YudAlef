@@ -8,7 +8,7 @@ from AES import *
 import AES
 from uuid import uuid4
 from tcp_by_size import *
-from utils import Platform, HealthCoord, StaminaCoord, JumpCoord, JumpPadCoord
+from utils import Platform, HealthCoord, StaminaCoord, JumpCoord, JumpPadCoord, Ladder
 
 class DH:
 
@@ -216,8 +216,8 @@ class Client:
     def send_revived(self):
         self.send(b"REVD")
 
-    def send_world(self):
-        self.send(b"WORL#" + str(self.renderer.player_id).encode() +b"#" + self.renderer.world.encode())
+    def send_world(self, world):
+        self.send(b"WORL#" + str(self.renderer.player_id).encode() +b"#" + world.encode())
 
     def send_dash(self):
         self.send(b"DASH#" + str(self.renderer.player_id).encode())
@@ -403,22 +403,70 @@ class Server:
         if num > len(self.levels):
             level = []
             level_addables = []
-            level.append(Platform((0, 1080 - 170), 7000, 170, (0,255,0)))
-            level.append(Platform((0, 1080-255), 600, 255,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
-            current_x =600
-            while current_x < 7000:
-                rx = random.randint(200, 400)
-                sx = current_x + rx
-                y = random.randint(200, 1080-200)
-                w = random.randint(100, 500)
-                level.append(Platform((sx, y), w, 200,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
-                if abs(y - level[-2].y) > 200 or abs(sx - level[-2].x) > 200:
-                    level_addables.append(JumpCoord(sx -rx/2 , y - (y-level[-2].y)/2))
-                if abs(y - level[-2].y) > 300:
-                    level_addables.append(JumpPadCoord(level[-2].x + level[-2].width/2 - 115/2, level[-2].y - 40))
-                current_x = sx + w
-            level.append(Platform((7000-600, 1080-255), 600, 255,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+            # level.append(Platform((0, 1080-255), 600, 255,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+            # current_x =600
+            # while current_x < 7000:
+            #     rx = random.randint(200, 400)
+            #     sx = current_x + rx
+            #     y = random.randint(200, 1080-200)
+            #     w = random.randint(100, 500)
+            #     level.append(Platform((sx, y), w, 200,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+            #     if abs(y - level[-2].y) > 200 or abs(sx - level[-2].x) > 200:
+            #         level_addables.append(JumpCoord(sx -rx/2 , y - (y-level[-2].y)/2))
+            #     if abs(y - level[-2].y) > 300:
+            #         level_addables.append(JumpPadCoord(level[-2].x + level[-2].width/2 - 115/2, level[-2].y - 40))
+            #     current_x = sx + w
+            # level.append(Platform((7000-600, 1080-255), 600, 255,(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+
+            # overgrown level
+            if random.random() < 0.5:
+
+                level.append(Platform((0, 1878), 4000, 122))
+                level.append(Platform((1537,1123), 323, 877))
+                level.append(Platform((341, 1355), 690, 76))
+                level.append(Platform((132, 845), 1091, 97))
+                level.append(Platform((678, 497), 694, 74))
+                level.append(Platform((2096, 438), 692, 76))
+                level.append(Platform((2090, 829), 694, 74))
+                level.append(Platform((2218,1526), 1090, 94))
+                level.append(Platform((3486, 1141), 514, 93))
+                for i in range(3):
+                    plat = random.choice(level)
+                    level_addables.append(StaminaCoord(plat.x + random.randint(0, plat.width), plat.y - 100))
+                for i in range(3):
+                    plat = random.choice(level)
+                    level_addables.append(HealthCoord(plat.x + random.randint(0, plat.width), plat.y - 100))
+                level.append(Ladder((554, 820), 99, 1045))
+                level.append(Ladder((894,480), 85, 384))
+                level.append(Ladder((2805, 1501), 103, 375))
+                level.append(Ladder((2351, 816), 111, 716))
+                level.append(Ladder((2570, 439), 129, 390))
+
+            else: # mirage level
+                level.append(Platform((0, 1778), 4000, 222))
+                level.append(Platform((291, 1291), 881, 136))
+                level.append(Platform((291, 831), 880, 137))
+                level.append(Platform((1463, 825), 636, 946))
+                level.append(Platform((2306, 1338), 1252, 130))
+                level.append(Platform((2589, 809), 1411, 137))
+                for i in range(3):
+                    plat = random.choice(level)
+                    level_addables.append(StaminaCoord(plat.x + random.randint(0, plat.width), plat.y - 100))
+                for i in range(3):
+                    plat = random.choice(level)
+                    level_addables.append(HealthCoord(plat.x + random.randint(0, plat.width), plat.y - 100))
+
+                level.append(JumpPadCoord(1212,1790 - 115/2))
+                level.append(JumpPadCoord(2131,1790 - 115/2))
+                level.append(JumpCoord(1279, 1319))
+                level.append(JumpCoord(1279, 870))
+                level.append(JumpCoord(141, 870))
+                level.append(JumpCoord(141, 1319))
+                level.append(JumpCoord(2161, 1364))
+                level.append(JumpCoord(3639, 1364))
+                level.append(JumpCoord(2301, 682))
             level.extend(level_addables)
+
             self.levels.append(level)
 
         data = b"LEVL#"
