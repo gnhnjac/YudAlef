@@ -1,0 +1,1 @@
+start /min cmd /c "py app.py"

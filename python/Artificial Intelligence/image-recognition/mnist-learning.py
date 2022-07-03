@@ -12,6 +12,7 @@ x_train_base, y_train = extract_training_samples('digits')
 x_test_base, y_test = extract_test_samples('digits')
 x_train = np.ndarray((x_train_base.shape[0], 28, 28), dtype=np.float32)
 x_test = np.ndarray((x_test_base.shape[0], 28, 28), dtype=np.float32)
+
 # # thin out image lines with opencv
 for i in range(len(x_train)):
     x_train[i] = np.asarray(x_train_base[i])
@@ -32,7 +33,7 @@ x_train, x_test = x_train / 255.0, x_test / 255.0 # convert color range from 0-2
 model = tf.keras.models.Sequential([
   tf.keras.layers.Flatten(input_shape=(28, 28)),
   tf.keras.layers.Dense(128, activation='relu'),
-  tf.keras.layers.Dropout(0.2),
+  tf.keras.layers.Dropout(0.4),
   tf.keras.layers.Dense(10, activation='softmax')
 ])
 

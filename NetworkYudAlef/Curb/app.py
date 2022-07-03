@@ -53,8 +53,6 @@ volume_slider = Slider(w / 2 - 200 + 15, h / 2 - 400, 400, 100, 0, 1, 1, "Music 
                        (8, 96, 168), (45, 115, 178), (8, 96, 168), 2)
 quit_settings_button = Button(0, 0, 400, 100, "Quit", (0, 0, 0), pix_font, (45, 115, 178), (8, 96, 168), (0, 0, 0), 0)
 
-# convert_radio_btn = Checkbox(screen, w / 2 - 200 + 15, h / 2 - 300, (230,230,230),"Change convert method (In case of poor performance)",(0,0,0),(0,0,0), pix_font, (8, 96, 168))
-
 # game assets
 
 players = ["Cyborg", "Punk", "Biker"]
@@ -444,5 +442,3 @@ pygame.quit()
 if cl is not None:
     cl.send_quit()
     cl.close()
-
-# tile reflection, crystalize, dents
