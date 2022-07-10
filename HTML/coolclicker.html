@@ -1,0 +1,226 @@
+<html>
+
+<head>
+<style>
+
+.border {
+  
+  border: 3px solid black;
+  border-style: double;
+  
+}
+
+</style>
+</head>
+
+
+<body onLoad="set()">
+
+<Script>
+
+var x = 0;
+var z = 0;
+var h = 0;
+
+function set() {
+setTimeout(set,1);
+document.getElementById("show").innerHTML = '<p>Money:</p>' + x;
+
+}
+
+function show() {
+if (z==1) {
+x+=2;
+} else {
+x+=1;
+}
+return x;
+}
+
+function clicker() {
+	if (y==2) {
+  x+=2
+  setTimeout(clicker,1000);
+  return x;
+  } else if (y==3) {
+  x+=4
+  setTimeout(clicker,1000);
+  return x;
+  } else {
+  
+  }
+}
+
+function buy1() {
+
+if (x>=50) {
+z = 1;
+x-=50;
+show();
+document.getElementById("dissapear").innerHTML="";
+return z,x;
+} else {
+
+}
+
+}
+
+function auto() {
+
+if (x>=200) {
+	y=2;
+  x-=200;
+clicker();
+document.getElementById("dissapear2").innerHTML="<button onClick='clicker2()'>AutoClicker 2.0 (+4 per sec) (costs 400) </button>";
+  return y,x;
+} else {
+
+}
+
+}
+
+function clicker2() {
+if (x>=400) {
+x-=400;
+y=3;
+document.getElementById("dissapear2").innerHTML="";
+return y,x;
+} else {
+
+}
+
+}
+
+function destroy() {
+
+if (x>=500) {
+h = 1;
+x-=500;
+show();
+enemy();
+document.getElementById("dissapear3").innerHTML="";
+return h,x;
+} else {
+
+}
+
+}
+
+
+var b = 40;
+
+function enemy() {
+
+if (h==1) {
+setTimeout(enemy,1000);
+b-=2;
+document.getElementById("enem").innerHTML ='<div style="border-bottom: 1px solid black;"></div><p> Enemy Killer:</p><img width="10%" src="https://vignette.wikia.nocookie.net/emojimovie/images/0/07/Gene.png/revision/latest?cb=20180916170226" width="25%"/>' + '<br>' +  "hp: " + b + "/40" 
+
+
+if (b<=0) {
+b = 40;
+x+= 50;
+show();
+return x,b;
+} else {
+
+}
+
+} else {
+
+}
+
+}
+
+function lotterybuy() {
+	if (x>=600) {
+  
+  x-=600
+  document.getElementById("valdiv").innerHTML = "<div style='border-bottom: 1px solid black;'></div><p> Lottery: </p><input type='text' name='lot' id='value' value='enter lottery number here'/><p style='float: right;font-size:80%;'>Rules:<br> Put the number you want to bet on in the box,<Br>if you get a 0 the number will be added to your balance,<br> if you get a 1 the number will be subtracted from your balance.</p> <br> <p id='num'></p> <button onClick='activate()'>Activate Lottery?</button><br><br><div style='border-bottom: 1px solid black;'></div>";
+  document.getElementById("destroy2").innerHTML = "";
+  return x;
+  } else {
+  
+  }
+}
+
+function activate() {
+
+lottery();
+
+}
+
+function lottery() {
+var int = document.getElementById("value").value
+var value = parseInt(int);
+if (x>=value) {
+x-=value
+var g = Math.floor(Math.random() * 2);
+
+document.getElementById("num").innerHTML = "Your Number Is " + g;
+
+if (g==0) {
+
+x+=value*2
+return x;
+
+} else {
+
+}
+
+
+} else {
+
+}
+
+
+
+}
+
+
+</Script>
+<button onClick="show()"> Click Me! </button>
+
+<p id="show"></p>
+
+<div id="enem">
+
+</div>
+
+<br>
+
+<div id="valdiv">
+
+</div>
+
+<p>
+Shop:
+</p>
+<div id="dissapear">
+
+<button onClick="buy1()">Upgrade Clicking Speed To 2 Per Click (costs 50)
+</button>
+</div>
+
+<div id="dissapear2">
+<button onClick="auto()">
+Autoclicker (+2 per sec) (costs 200)
+</button>
+</div>
+<div id="dissapear3">
+
+<button onClick="destroy()">
+
+Enemy Destroyer (costs 500)
+
+</button>
+</div>
+<div id="destroy2">
+<button onClick="lotterybuy()">
+Buy Lottery? (Costs 600)
+</button>
+
+</div>
+
+</body>
+</html>
