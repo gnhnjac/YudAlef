@@ -47,15 +47,15 @@ void setup() {
 
       while (bounded < iterations) {
 
-        double newR = a*a - b*b;
+        //double newR = a*a - b*b;
         //double newB = abs((float)(2 * a * b));
-        double newB = (float)(2 * a * b);
+        //double newB = (float)(2 * a * b);
         
         // double newR = a*a*a - 2*a*b*b;
         // double newB = 3 * a*a * b - b*b*b;
         
-        // double newR = a*a*a*a + b*b*b*b - 6*a*a*b*b;
-        // double newB = 4 * a*a * b - 4 * a * b *b;
+         double newR = a*a*a*a + b*b*b*b - 6*a*a*b*b;
+         double newB = 4 * a*a * b - 4 * a * b *b;
 
         a = newR + originalA;
         b = newB + originalB;
@@ -134,14 +134,14 @@ void mouseReleased() {
 
       while (bounded < iterations) {
 
-        double newR = a*a - b*b;
-        //double newB = abs((float)(2 * a * b));
-        double newB = (float)(2 * a * b);
+        //double newR = a*a - b*b;
+        ////double newB = abs((float)(2 * a * b));
+        //double newB = (float)(2 * a * b);
         // double newR = a*a*a - 2*a*b*b;
         // double newB = 3 * a*a * b - b*b*b;
         
-        // double newR = a*a*a*a + b*b*b*b - 6*a*a*b*b;
-        // double newB = 4 * a*a * b - 4 * a * b *b;
+         double newR = a*a*a*a + b*b*b*b - 6*a*a*b*b;
+         double newB = 4 * a*a * b - 4 * a * b *b;
 
         a = newR + originalA;
         b = newB + originalB;
