@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from scipy import signal
 from numba import njit
 import pickle
+from cv2 import cv2
 
 
 @njit(cache=True, fastmath=True)
@@ -417,6 +418,41 @@ class Network:
 
         return txt
 
+    def visualize_convolution(self, img):
+
+        for layer in self.layers:
+            if isinstance(layer, Dropout):
+                continue
+            if isinstance(layer, Convolutional):
+                cv2.imshow("Before convolution", self.get_conv_image(img))
+            img = layer.propagate(img)
+            if isinstance(layer, Convolutional):
+                cv2.imshow("After convolution", self.get_conv_image(img))
+                cv2.waitKey()
+
+    @staticmethod
+    def get_conv_image(img_block):
+        w = img_block.shape[1]
+        h = img_block.shape[2]
+        img_full = np.zeros((1920, 1080))
+        k = 0
+        for i in range(1920 // w):
+            for j in range(1080 // h):
+                x = i * w
+                y = j * h
+                img_full[x:x + w, y:y + h] = img_block[k]
+                k += 1
+                if k == len(img_block):
+                    break
+            if k == len(img_block):
+                break
+
+        img_full = img_full[~np.all(img_full == 0, axis=1)]
+        img_full = img_full[:, ~np.all(img_full == 0, axis=0)]
+        img_full /= np.max(img_full)
+
+        return img_full
+
 
 def __mnist_test():
     net = Network([
@@ -458,6 +494,7 @@ def __mnist_test():
     net.stochastic_gradient_descent(x_train, y_train, 0.01, binary_cross_entropy, binary_cross_entropy_prime, 20,
                                     graph=True, verbose=True,
                                     eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=x_test, ytest=y_test)
+    net.visualize_convolution(x_test[0])
 
 
 if __name__ == "__main__":

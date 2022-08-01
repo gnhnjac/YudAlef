@@ -20,7 +20,7 @@ from cv2 import cv2
 #     Dense(2, 128),
 #     Sigmoid(),
 # ])
-net = Network.load_network('network.pickle')
+net = Network.load_network('seventypercentsmile.pickle')
 print(net)
 x_train = np.zeros((1000, 3, 72, 96))
 y_train = np.zeros((1000, 2))
@@ -64,7 +64,9 @@ for image, index in zip(listdir(folder_dir), range(500)):
 x_train /= 255
 x_test /= 255
 
-net.stochastic_gradient_descent(x_train, y_train, 0.01, binary_cross_entropy, binary_cross_entropy_prime, 1, graph=True, verbose=True, eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=x_test, ytest=y_test)
+net.visualize_convolution(x_test[0])
 
-net.save_network()
+#net.stochastic_gradient_descent(x_train, y_train, 0.01, binary_cross_entropy, binary_cross_entropy_prime, 1, graph=True, verbose=True, eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=x_test, ytest=y_test)
+
+#net.save_network()
 
