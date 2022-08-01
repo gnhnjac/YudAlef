@@ -514,3 +514,7 @@ ida76sp1/
 all_imgs/
 test/
 train/
+smiling/
+not_smiling/
+smiling_test/
+not_smiling_test/

@@ -1,23 +1,23 @@
 import numpy as np
-import timeit
 from tensorflow import keras
-import random
-import sys
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-from numba import jit, njit, cuda
 from scipy import signal
-import skimage.measure
+from numba import njit
+import pickle
 
 
+@njit(cache=True, fastmath=True)
 def relu(x):
     return x * (x > 0)
 
 
+@njit(cache=True, fastmath=True)
 def d_relu(x):
     return 1 * (x > 0)
 
 
+@njit(cache=True, fastmath=True)
 def softmax(z):
     """Computes softmax function.
     z: array of input values.
@@ -27,6 +27,7 @@ def softmax(z):
     return exps / np.sum(exps)
 
 
+@njit(cache=True, fastmath=True)
 def d_softmax(z):
     """Computes the gradient of the softmax function.
     z: (T, 1) array of input values where the gradient is computed. T is the
@@ -41,30 +42,85 @@ def d_softmax(z):
     return D[0]
 
 
+@njit(cache=True, fastmath=True)
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
 
+@njit(cache=True, fastmath=True)
 def d_sigmoid(x):
     return x * (1 - x)
 
 
+@njit(cache=True, fastmath=True)
+def mse(y_pred, y_true):
+    return np.mean(np.power(y_true - y_pred, 2))
+
+
+@njit(cache=True, fastmath=True)
+def mse_prime(y_pred, y_true):
+    return 2 * (y_pred - y_true) / len(y_true)  # np.size(y_true)
+
+
+@njit(cache=True, fastmath=True)
 def binary_cross_entropy_prime(y_pred, y_true):
-    return ((1 - y_true) / (1 - y_pred) - y_true / y_pred) / np.size(y_true)
+    return ((1 - y_true) / (1 - y_pred) - y_true / y_pred) / len(y_true)  # np.size(y_true)
 
 
-def squared_error_derivative(x, y):
-    """
-    x: predicted value
-    y: actual value
-    """
-    return 2 * (x - y)
+@njit(cache=True, fastmath=True)
+def binary_cross_entropy(y_pred, y_true):
+    return np.mean(-y_true * np.log(y_pred) - (1 - y_true) * np.log(1 - y_pred))
+
 
 class Layer:
 
     def __init__(self):
         self.input = None
         self.activation_gradient = None
+
+    def propagate(self, inp):
+        pass
+
+    def back_propagate(self, output_grad, lr):
+        pass
+
+
+class Activation(Layer):
+
+    def __init__(self, activation, d_activation):
+        super().__init__()
+        self.activation = activation
+        self.d_activation = d_activation
+
+    def propagate(self, inp):
+        out = self.activation(inp)
+        self.activation_gradient = self.d_activation(out)
+        return out
+
+    def back_propagate(self, output_gradient, learning_rate):
+        return self.activation_gradient * output_gradient
+
+    def __str__(self):
+        return f"Activation\n=============\nType: {type(self)}"
+
+
+class Sigmoid(Activation):
+
+    def __init__(self):
+        super().__init__(sigmoid, d_sigmoid)
+
+
+class Softmax(Activation):
+
+    def __init__(self):
+        super().__init__(softmax, d_softmax)
+
+
+class Relu(Activation):
+
+    def __init__(self):
+        super().__init__(relu, d_relu)
+
 
 class Flatten:
 
@@ -77,8 +133,11 @@ class Flatten:
 
         return inp.flatten()
 
-    def back_propagate(self, output_grad):
+    def back_propagate(self, output_grad, lr):
         return np.reshape(output_grad, self.inp_shape)
+
+    def __str__(self):
+        return f"Flatten\n=============\nShape: {self.inp_shape}"
 
 
 class Dense(Layer):
@@ -86,24 +145,30 @@ class Dense(Layer):
     Layer with fully connected neurons
     """
 
-    def __init__(self, amount, input_amount, activation, d_activation):
+    def __init__(self, amount, input_amount):
         super().__init__()
-        self.activation = activation
-        self.d_activation = d_activation
         self.weight_matrix = np.random.rand(amount, input_amount)
         self.weight_matrix = self.weight_matrix * 2 - 1
         self.bias_vector = np.random.rand(amount)
         self.bias_vector = self.bias_vector * 2 - 1
 
-    def __str__(self):
-        return str(self.weight_matrix) + "\n" + str(self.bias_vector)
-
     def propagate(self, inp):
         self.input = inp
-        output = self.activation(self.weight_matrix.dot(inp) + self.bias_vector)
-        self.activation_gradient = self.d_activation(output)
-        return output
+        return self.weight_matrix.dot(inp) + self.bias_vector
 
+    def back_propagate(self, output_grad, lr):
+        weight_deltas = np.multiply(output_grad.reshape(-1, 1), self.input)  # gradient of weight
+
+        self.bias_vector -= output_grad * lr
+
+        output_grad = self.weight_matrix.T @ output_grad
+
+        self.weight_matrix -= weight_deltas * lr
+
+        return output_grad
+
+    def __str__(self):
+        return f"Dense\n=============\nParameters: {len(self.weight_matrix.flatten()) + len(self.bias_vector)}"
 
 
 class Convolutional(Layer):
@@ -111,24 +176,31 @@ class Convolutional(Layer):
     Layer with convolutional neurons
     """
 
-    def __init__(self, kernel_amount, kernel_size, input_shape, activation, d_activation):
+    def __init__(self, kernel_amount, kernel_size, input_shape, pad=False):
+        super().__init__()
         self.input_amount, self.input_width, self.input_height = input_shape
+
+        self.pad = pad
+
+        if pad:
+            self.input_width += 2
+            self.input_height += 2
+
         self.kernel_amount = kernel_amount
         self.kernel_size = kernel_size
         self.weight_matrix = np.random.rand(kernel_amount, self.input_amount, kernel_size, kernel_size)
         self.weight_matrix = self.weight_matrix * 2 - 1
-        self.bias_vector = np.random.rand(kernel_amount, self.input_width - self.kernel_size + 1, self.input_height - self.kernel_size + 1)
+        self.bias_vector = np.random.rand(kernel_amount, self.input_width - self.kernel_size + 1,
+                                          self.input_height - self.kernel_size + 1)
         self.bias_vector = self.bias_vector * 2 - 1
 
-        self.activation = activation
-        self.d_activation = d_activation
-    
-    def __str__(self):
-        return str(self.weight_matrix) + "\n" + str(self.bias_vector)
-    
     def propagate(self, inp):
+        if self.pad:
+            inp = np.pad(inp, pad_width=((0, 0), (1, 1), (1, 1)), mode='constant')
         if inp.shape != (self.input_amount, self.input_width, self.input_height):
-            raise Exception(f"Got input shape {inp.shape}, expected {(self.input_amount, self.input_width, self.input_height)}")
+            raise Exception(
+                f"Got input shape {inp.shape}, expected {(self.input_amount, self.input_width, self.input_height)}")
+
         self.input = inp
         output = np.copy(self.bias_vector)
 
@@ -141,31 +213,37 @@ class Convolutional(Layer):
             for j in range(inp.shape[0]):
                 output[i] += signal.correlate2d(inp[j], self.weight_matrix[i, j], "valid")
 
-        activated_output = self.activation(output)
+        return output
 
-        self.activation_gradient = self.d_activation(activated_output)
+    def back_propagate(self, output_grad, lr):
+        # in this case gW is the kernel gradient
+        kernel_deltas = np.zeros(self.weight_matrix.shape)
+        inp_grad = np.zeros(self.input.shape)  # (soon to be output gradient)
+        for i in range(self.kernel_amount):
+            for j in range(self.input_amount):
+                kernel_deltas[i, j] = signal.correlate2d(self.input[j], output_grad[i], "valid")
+                inp_grad[j] = signal.convolve2d(output_grad[i], self.weight_matrix[i, j], "full")
 
-        return activated_output
+        # update weights and biases
+        self.weight_matrix -= kernel_deltas * lr  # adjust kernel weights
+        self.bias_vector -= output_grad * lr  # adjust biases
+
+        return inp_grad
+
+    def __str__(self):
+        return f"Convolutional\n=============\nParameters: {len(self.weight_matrix.flatten()) + len(self.bias_vector)}"
+
 
 class MaxPooling(Layer):
 
-    def __init__(self, kernel_size):
+    def __init__(self):
         super().__init__()
-        self.kernel_size = kernel_size
 
     def propagate(self, inp):
 
         self.input = inp
 
-        output = np.zeros((inp.shape[0], inp.shape[1]//self.kernel_size, inp.shape[2]//self.kernel_size))
-
-        # for i in range(inp.shape[0]):
-        #     for j in range(inp.shape[1]//self.kernel_size):
-        #         for k in range(inp.shape[2]//self.kernel_size):
-        #             output[i, j, k] = np.max(inp[i, j:j+self.kernel_size, k:k+self.kernel_size].flatten())
-        #
-        # for i in range(len(inp)):
-        #     output[i] = skimage.measure.block_reduce(inp[i], (self.kernel_size, self.kernel_size), np.max)
+        output = np.zeros((inp.shape[0], inp.shape[1] // 2, inp.shape[2] // 2))
 
         for i in range(len(inp)):
             M, N = inp[i].shape
@@ -179,34 +257,46 @@ class MaxPooling(Layer):
 
         return output
 
-    def back_propagate(self, inp):
+    @staticmethod
+    @njit(fastmath=True, cache=True)
+    def solve_window(inp, out_grad, new_grad, stride, kernel_size):
+        for i in range(new_grad.shape[0]):
+            for j in range(new_grad.shape[1] // stride):
+                for k in range(new_grad.shape[2] // stride):
+                    x = j * stride
+                    y = k * stride
+                    window = inp[i, x:x + kernel_size, y:y + kernel_size]
+                    mask = window == np.max(window)
+                    new_grad[i, x:x + kernel_size, y:y + kernel_size] += np.multiply(mask, out_grad[i, j, k])
 
-        output = self.input
+    def back_propagate(self, output_grad, lr):
 
-        for i in range(inp.shape[0]):
-            for j in range(inp.shape[1]):
-                for k in range(inp.shape[2]):
+        new_grad = np.zeros(self.input.shape)
 
-                    block = output[i, j:j+self.kernel_size, k:k+self.kernel_size]
-                    block_max = np.max(block)
+        # do it with jit for much faster processing
+        self.solve_window(self.input, output_grad, new_grad, 2, 2)
 
-                    for m in range(block.shape[0]):
-                        for n in range(block.shape[1]):
-                            block[m, n] = 0 if block[m, n] != block_max else inp[i,j,k]
+        return new_grad
 
-                    output[i, j:j+self.kernel_size, k:k+self.kernel_size] = block
-        return output
+    def __str__(self):
+        return "Maxpooling\n============="
+
 
 class Dropout:
 
     def __init__(self, precent):
-        self.precent = precent
+        self.percent = precent
 
     def propagate(self, inp):
-        mask = np.random.rand(inp.shape[0])
-        mask = mask > self.precent
+        mask = np.random.rand(inp.shape[0]) > self.percent
 
-        return np.multiply(inp, mask)
+        return np.multiply(inp, mask) / (1 - self.percent)
+
+    def back_propagate(self, output_grad, lr):
+        return output_grad
+
+    def __str__(self):
+        return f"Dropout\n=============\nPercent: {self.percent}"
 
 
 class Network:
@@ -224,74 +314,65 @@ class Network:
 
         return data
 
-    def stochastic_gradient_descent(self, inputs, targets, learning_rate, epochs=1, verbose=False,
+    def stochastic_gradient_descent(self, inputs, targets, learning_rate, loss_function, loss_function_derivative,
+                                    epochs=1, graph=False, verbose=False,
                                     eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=None, ytest=None):
         """
         Back propagation with stochastic gradient descent.
         """
 
-        if verbose:
-            print("Training...")
+        if graph:
             success_rate_cache = []
             success_rate_train_cache = []
-
-        real_layers = self.get_real_layers()
+            error_cache = []
 
         for epoch in range(epochs):
             inpoutpairs = list(zip(inputs, targets))
             np.random.shuffle(inpoutpairs)
-            for inp, target in tqdm(inpoutpairs, desc=f"Epoch {epoch}", disable=not verbose):
+            error = 0
+            for inp, target in tqdm(inpoutpairs, desc=f"Epoch {epoch + 1}/{epochs}", disable=not verbose):
                 for layer in self.layers:
                     inp = layer.propagate(inp)
 
-                L = len(real_layers) - 1  # layer index
+                if graph:
+                    error += loss_function(inp, target)
 
-                output_gradient = inp - target
+                output_gradient = loss_function_derivative(inp, target)  # inp - target
 
                 # backpropagate error recursively
-                while L >= 0:
+                for layer in reversed(self.layers):
+                    output_gradient = layer.back_propagate(output_gradient, learning_rate)
 
-                    layer = real_layers[L]
+            # if epoch % 10 == 0:
+            #     learning_rate /= 2
 
-                    if isinstance(layer, Flatten):# or isinstance(layer, MaxPooling):
-                        output_gradient = layer.back_propagate(output_gradient)
-                        L -= 1
-                        continue
-                    gB = layer.activation_gradient * output_gradient * learning_rate  # bias gradient calculation
+            if verbose or graph:
 
-                    if isinstance(layer, Dense):
-                        gW = np.multiply(gB.reshape(-1, 1), layer.input)  # gradient of weight
+                train_eval = self.evaluate(inputs, targets, eval_function)
+                test_eval = None
+                if xtest is not None and ytest is not None:
+                    test_eval = self.evaluate(xtest, ytest, eval_function)
 
-                        output_gradient = layer.weight_matrix.T @ output_gradient
-                    elif isinstance(layer, Convolutional):
-                        # in this case gW is the kernel gradient
-                        gW = np.zeros(layer.weight_matrix.shape)
-                        inp_grad = np.zeros((layer.input_amount, layer.input_width, layer.input_height)) # (soon to be output gradient)
-                        for i in range(layer.kernel_amount):
-                            for j in range(layer.input_amount):
-                                gW[i, j] = signal.correlate2d(layer.input[j], output_gradient[i], "valid")
-                                inp_grad[j] = signal.convolve2d(output_gradient[i], layer.weight_matrix[i, j], "full")
+                if graph:
 
-                        output_gradient = inp_grad
+                    error_cache.append(error / len(inpoutpairs))
+                    success_rate_train_cache.append(train_eval)
+                    if test_eval:
+                        success_rate_cache.append(test_eval)
+                if verbose:
+                    print(f"Training success rate: {format(train_eval, '.3f')}")
+                    if test_eval:
+                        print(f"Success rate: {format(test_eval, '.3f')}")
 
-                    # update weights and biases 
-                    layer.weight_matrix -= gW  # adjust weights
-                    layer.bias_vector -= gB  # adjust biases
-
-                    L -= 1
-
-            if epoch % 10 == 0:
-                learning_rate /= 2
-
-            if verbose:
-                success_rate_train_cache.append(self.evaluate(inputs, targets, eval_function))
-                success_rate_cache.append(self.evaluate(xtest, ytest, eval_function))
-
-        if verbose:
-            print(f"Success rate: {success_rate_cache[-1]}")
-            print(f"Training success rate: {success_rate_train_cache[-1]}")
-            plt.plot(success_rate_cache, label="Test")
-            plt.plot(success_rate_train_cache, label="Train")
+        if graph:
+            if xtest is not None and ytest is not None:
+                plt.plot(success_rate_cache, label="Testing success")
+            plt.plot(success_rate_train_cache, label="Training success")
+            plt.title("Success rate")
+            plt.legend()
+            plt.show()
+            plt.plot(error_cache)
+            plt.title("Loss")
             plt.show()
 
     def evaluate(self, inputs, targets, eval_function, verbose=False):
@@ -310,21 +391,56 @@ class Network:
             total += 1
         return correct / total
 
-    def get_real_layers(self):
-        real = []
+    def save_network(self):
+        with open('network.pickle', 'wb') as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load_network(file):
+        with open(file, 'rb') as f:
+            b = pickle.load(f)
+        return b
+
+    def __str__(self):
+        txt = ""
+
         for layer in self.layers:
-            if isinstance(layer, Dense) or isinstance(layer, Convolutional) or isinstance(layer, Flatten): #or isinstance(layer, MaxPooling):
-                real.append(layer)
-        return real
+            txt += str(layer) + "\n=============\n\n"
+
+        total_params = 0
+
+        for layer in self.layers:
+            if isinstance(layer, Convolutional) or isinstance(layer, Dense):
+                total_params += len(layer.weight_matrix.flatten()) + len(layer.bias_vector)
+
+        txt += f"\nTotal Parameters: {total_params}"
+
+        return txt
 
 
-def mnist_test():
+def __mnist_test():
     net = Network([
-        Convolutional(5, 3, (1, 28, 28), sigmoid, d_sigmoid),
-        Flatten((5,26,26)),
-        Dense(128, 5*26*26, relu, d_relu),
-        Dense(2, 128, softmax, d_softmax),
+        Convolutional(10, 3, (1, 28, 28), pad=True),
+        Relu(),
+        MaxPooling(),
+        Convolutional(10, 3, (10, 14, 14), pad=True),
+        Relu(),
+        MaxPooling(),
+        Flatten((10, 7, 7)),
+        Dense(128, 10 * 7 * 7),
+        Sigmoid(),
+        Dense(10, 128),
+        Sigmoid()
     ])
+    print(net)
+    #
+    # net = Network([
+    #     Flatten((28, 28)),
+    #     Dense(128, 28 * 28),
+    #     Sigmoid(),
+    #     Dense(10, 128),
+    #     Sigmoid()
+    # ])
 
     (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
 
@@ -332,22 +448,17 @@ def mnist_test():
     x_test = x_test / 255
     x_train = x_train[:, np.newaxis, ...]
     x_test = x_test[:, np.newaxis, ...]
+    x_train = x_train[:5000]
+    x_test = x_test[:5000]
+    y_train = y_train[:5000]
+    y_test = y_test[:5000]
 
-    zero_index = np.where(y_test == 0)[0][:10000]
-    one_index = np.where(y_test == 1)[0][:10000]
-    all_indices = np.hstack((zero_index, one_index))
-    all_indices = np.random.permutation(all_indices)
-    x_test, y_test = x_test[all_indices], y_test[all_indices]
-
-    zero_index = np.where(y_train == 0)[0][:10000]
-    one_index = np.where(y_train == 1)[0][:10000]
-    all_indices = np.hstack((zero_index, one_index))
-    all_indices = np.random.permutation(all_indices)
-    x_train, y_train = x_train[all_indices], y_train[all_indices]
-
-    y_train = keras.utils.to_categorical(y_train, 2)
-    y_test = keras.utils.to_categorical(y_test, 2)
-    net.stochastic_gradient_descent(x_train, y_train, 0.01, 10, verbose=True, eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=x_test, ytest=y_test)
+    y_train = keras.utils.to_categorical(y_train, 10)
+    y_test = keras.utils.to_categorical(y_test, 10)
+    net.stochastic_gradient_descent(x_train, y_train, 0.01, binary_cross_entropy, binary_cross_entropy_prime, 20,
+                                    graph=True, verbose=True,
+                                    eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=x_test, ytest=y_test)
 
 
-mnist_test()
+if __name__ == "__main__":
+    __mnist_test()
