@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <style>
+
+        .image_container {
+
+            width: 300px;
+            border: 10px solid green;
+            padding: 50px;
+            margin: 0 auto;
+            align-self: center;
+
+        }
+
+        ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+          }
+          
+          li {
+            float: left;
+          }
+          
+          li a {
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+          }
+          
+          li a:hover {
+            background-color: #111;
+          }
+
+          .active {
+
+            background-color: #111;
+
+          }
+          table {
+            width: 100%;
+            table-layout: fixed;
+
+          }
+        img {
+            width: 100%;
+        }
+        img:hover {
+            transform: scale(5); /* (150% zoom - Note: if the zoom is too large, it will go outside of the viewport) */
+            z-index: 1000;
+            position: absolute
+        }
+        .imagetext_container {
+            position: relative;
+            text-align: center;
+        }
+
+        .appearable {
+            position: absolute;
+            top: -55px;
+            left: -10px;
+            color: white;
+            font-weight: bold;
+            opacity: 0;
+            pointer-events:none;
+            font-size: 33px;
+            -webkit-text-stroke: 1px black;
+
+        }
+
+        img:hover + .appearable {
+
+            opacity: 100%;
+            transform: translate(-100%,-100%);
+            z-index: 1001;
+
+        }
+
+
+
+    </style>
+</head>
+<body style="background-color: pink;">
+    <ul>
+        <li><a href="./home.html">Home</a></li>
+        <li><a class="active" href="./gallery.html">Gallery</a></li>
+        <li><a href="./contact.html">Contact</a></li>
+    </ul>
+
+    <h1 style="text-align: center;"><u><b>Image Gallery</b></u></h1>
+    <br/>
+    <div class="image_container">
+        <table border="0" style="width: 100%;">
+            <tr>
+             <td><div class="imagetext_container"><img src="https://cdn.britannica.com/60/140360-050-A2E7778E/LA-Bisson-Frederic-Chopin-detail-photo-publisher-1849.jpg"/><p class="appearable">The only known image of Chopin</p></div></td>
+             <td><div class="imagetext_container"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Chopin%2C_by_Wodzinska.JPG/220px-Chopin%2C_by_Wodzinska.JPG"/><p class="appearable">A painted portrait of Frederic</p></div></td>
+             <td><div class="imagetext_container"><img src="https://hadikarimi.com/wp-content/uploads/2020/06/Chopin-1.jpg"/><p class="appearable">A modern rendered depiction of Frederic</p></div></td>
+           </tr>
+           <tr>
+             <td><div class="imagetext_container"><img src="https://freshsheetmusic.com/media/catalog/product/f/r/frederic_chopin-nocturne__op._55__no._1-musicnotes_thumbnail.png"/></div></td>
+             <td><div class="imagetext_container"><img src="https://musescore.com/static/musescore/scoredata/g/0f9425067cb8ec345868a4ea4d72fbdd1b13e571/score_0.png?no-cache=1608415756"/></td>
+             <td><div class="imagetext_container"><img src="https://www.mfiles.co.uk/scores/waltz-op64-no2.jpg"/></td>
+           </tr>
+           <tr>
+             <td><div class="imagetext_container"><img src="https://static.reuters.com/resources/r/?m=02&d=20070321&t=2&i=503330&r=503330&w=800"/><p class="appearable" style="top:-5px;">A picture of Chopin's personal piano</p></div></td>
+             <td><div class="imagetext_container"><img src="https://upload.wikimedia.org/wikipedia/commons/9/93/Pere-Lachaise_Chopin_grave.jpg"/><p class="appearable">A picture of Chopin's grave</p></div></td>
+             <td><div class="imagetext_container"><img src="https://assets.classicfm.com/2012/45/george-sand-1352397287-view-1.png"/><p class="appearable" style="top:0px;">A picture of Chopin's lover George Sand</p></div></td>
+           </tr>
+         </table>
+    </div>
+
+</body>
+</html>

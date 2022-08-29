@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <style>
+
+        .contact_container {
+
+            width: 300px;
+            border: 10px solid green;
+            padding: 50px;
+            margin: 0 auto;
+            align-self: center;
+            text-align: center
+
+        }
+
+        ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+          }
+          
+          li {
+            float: left;
+          }
+          
+          li a {
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+          }
+          
+          li a:hover {
+            background-color: #111;
+          }
+
+          .active {
+
+            background-color: #111;
+
+          }
+
+          .input {
+
+            border-radius: 5px;
+            margin-bottom: 10px;
+            width:60%;
+            height: 20px;
+
+          }
+
+          .send {
+
+            border-radius: 5px;
+            font-family: monospace;
+            width: 50px;
+            padding: 2px;
+            margin-top: 10px;
+            position: absolute;
+            margin-left: auto;
+margin-right: auto;
+left: 0;
+right: 0;
+text-align: center;
+            background-color: white;
+            border: 0px;
+
+          }
+
+    </style>
+</head>
+<body style="background-color: pink;">
+    <ul>
+        <li><a href="./home.html">Home</a></li>
+        <li><a href="./gallery.html">Gallery</a></li>
+        <li><a class="active" href="./contact.html">Contact</a></li>
+    </ul>
+
+    <h1 style="text-align: center;"><u><b>Contact us</b></u></h1>
+    <br/>
+    <div class="contact_container">
+        <form method="post">
+            <input type="text" class="input"  name="name" placeholder="Your name..."/>
+            <input type="text"  class="input" name="phone" placeholder="Your phone..."/>
+            <input type="text" class="input"  name="question" placeholder="Your question for us..."/>
+            <br/>
+            <input type="submit" class="send" name="submit1" value="Send" />
+            </form>
+    </div>
+
+</body>
+</html>

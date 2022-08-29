@@ -364,6 +364,7 @@ class Network:
                     print(f"Training success rate: {format(train_eval, '.3f')}")
                     if test_eval:
                         print(f"Success rate: {format(test_eval, '.3f')}")
+                    print("Loss: " + str(error / len(inpoutpairs)).format('.3f'))
 
         if graph:
             if xtest is not None and ytest is not None:
@@ -491,7 +492,7 @@ def __mnist_test():
 
     y_train = keras.utils.to_categorical(y_train, 10)
     y_test = keras.utils.to_categorical(y_test, 10)
-    net.stochastic_gradient_descent(x_train, y_train, 0.01, binary_cross_entropy, binary_cross_entropy_prime, 20,
+    net.stochastic_gradient_descent(x_train, y_train, 0.01, binary_cross_entropy, binary_cross_entropy_prime, 5,
                                     graph=True, verbose=True,
                                     eval_function=lambda x, y: np.argmax(x) == np.argmax(y), xtest=x_test, ytest=y_test)
     net.visualize_convolution(x_test[0])
