@@ -1,0 +1,4 @@
+2 s[38;5;10mfd[38;5;255msdf
+3 sd[38;5;10mfd[38;5;255mfs
+5 sdfsdf[38;5;10mfd[38;5;255msfsddsffsd
+6 sd[38;5;10mfd[38;5;255mfssdffsd

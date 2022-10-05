@@ -1,4 +1,5 @@
 # external - history, 
+from http.client import TOO_MANY_REQUESTS
 from os import listdir
 from os.path import isfile, join, isdir, dirname, abspath
 import os
@@ -10,55 +11,120 @@ import re
 def filter_empty_strings(lst):
     return list(filter(lambda x: x != "", lst))
 
+STDOUT = sys.stdout
+
 class Frame:
 
     def __init__(self):
         with open("env_vars.txt", "r") as f:
             self.env_vars = f.read().split("\n")
         
+        self.redirect_file = ""
         self.command_history = []
         self.current_directory = abspath(self.get_environment_variable("HOME"))
         if self.current_directory == "":
             self.current_directory = "C:\\"
 
-    def check_for_exe_in_path_and_run(self, name, args):
+    def check_for_exe_redirect_wrapper(self, name, args):
+        
+        file_to_run = self.check_for_exe_in_path_and_return_it(name)
+
+        if "|" in args:
+            ps1 = file_to_run
+            args1 = args[:args.index("|")]
+            ps2 = args[args.index("|")+1:]
+            args2 = ps2[1:]
+            ps2 = ps2[0]
+            ps2 = self.check_for_exe_in_path_and_return_it(ps2)
+
+            if ps2 == 0:
+                print(f"Command {ps2} not found.")
+                return 0
+            if ps1 == 0:
+                print(f"Command {ps1} not found.")
+                return 0
+            
+            prefix1 = "python " if ps1[-3:] == ".py" else ""
+            ps1 = subprocess.Popen((prefix1 + ps1 + " " + " ".join(args1)), stdout=subprocess.PIPE)
+
+            prefix2 = "python " if ps2[-3:] == ".py" else ""
+
+            ps2 = subprocess.call((prefix2 + ps2 + " " + " ".join(args2)), stdin=ps1.stdout)
+            ps1.wait()
+
+            return 1
+
+            
+
+        if file_to_run == 0:
+            if self.redirect_file != "":
+                self.redirect_file = ""
+                sys.stdout = STDOUT
+            return 0
+
+        if self.redirect_file != "":
+            with open(self.redirect_file, "w") as f:
+                if name[-4:] == ".exe":
+                    subprocess.run([file_to_run] + args, stdout=f)
+                    return 1
+                elif name[-3:] == ".py":
+                    subprocess.run(["python",file_to_run] + args, stdout=f)
+                    return 1
+        else:
+            if name[-4:] == ".exe":
+                subprocess.run([file_to_run] + args)
+                return 1
+            elif name[-3:] == ".py":
+                subprocess.run(["python",file_to_run] + args)
+                return 1
+        
+        if self.redirect_file != "":
+            self.redirect_file = ""
+            sys.stdout = STDOUT
+        
+        return 1
+
+
+    def check_for_exe_in_path_and_return_it(self, name):
 
         path = self.get_environment_variable("PATH")
 
         if len(filter_empty_strings(name.replace("/","\\").split("\\"))) > 1:
             if isfile(name):
-                if name[-4:] == ".exe":
-                    subprocess.run([join(self.current_directory, name)] + args)
-                    return 1
-                elif name[-3:] == ".py":
-                    subprocess.run(["python",join(self.current_directory, name)] + args)
-                    return 1
+                res = Frame.check_for_exe_in_dir_and_return_it(name, join(self.current_directory, name))
+                if res != 0:
+                    return res
                 else:
                     return 0
             else:
                 return 0
 
-
-        for fil in [f for f in listdir(self.current_directory) if isfile(join(self.current_directory, f))]:
-            if fil == name:
-                if fil[-4:] == ".exe":
-                    subprocess.run([join(self.current_directory, fil)] + args)
-                    return 1
-                elif fil[-3:] == ".py":
-                    subprocess.run(["python",join(self.current_directory, fil)] + args)
-                    return 1
+        res = Frame.check_for_exe_in_dir_and_return_it(name, self.current_directory)
+        if res != 0:
+            return res
 
         for subpath in path.split(";"):
             if subpath == '':
                 continue
-            for fil in [f for f in listdir(subpath) if isfile(join(subpath, f))]:
-                if fil == name:
-                    if fil[-4:] == ".exe":
-                        subprocess.run([join(subpath, fil)] + args)
-                        return 1
-                    elif fil[-3:] == ".py":
-                        subprocess.run(["python",join(subpath, fil)] + args)
-                        return 1
+            res = Frame.check_for_exe_in_dir_and_return_it(name, subpath)
+            if res != 0:
+                return res
+
+        return 0
+    
+    @staticmethod
+    def check_for_exe_in_dir_and_return_it(name, direc):
+        for fil in [f for f in listdir(direc) if isfile(join(direc, f))]:
+            res = Frame.check_for_exe_and_return_it(name, join(direc, fil))
+            if res != 0:
+                return res
+        return 0
+    
+    @staticmethod
+    def check_for_exe_and_return_it(wantedname, name):
+        if name.split("\\")[-1:][0] == wantedname:
+            if name[-4:] == ".exe" or name[-3:] == ".py":
+                return name
         return 0
 
     
@@ -640,6 +706,28 @@ class Frame:
         else:
             return 0
 
+    def activate_redirect(self,args):
+        if ">" in args:
+            
+            ind = args.index(">")
+
+            f = args[ind+1]
+
+            if isfile(join(self.current_directory, f)):
+                f = join(self.current_directory, f)
+            
+            del args[ind]
+            del args[ind]
+
+            if not isfile(f):
+                print("Redirect is not a valid filename.")
+                return -1
+
+            self.redirect_file = f
+            return f
+    
+        return 0
+
 
 
 frame = Frame()
@@ -654,11 +742,23 @@ while True:
             args = command[1:]
         command = str.lower(command[0])
 
-        if frame.check_command_validity(command):
-            getattr(frame, command)(args)
-        elif frame.check_for_exe_in_path_and_run(command, args):
+        if frame.activate_redirect(args) == -1:
             continue
+
+        if frame.check_command_validity(command):
+            if frame.redirect_file != "":
+                with open(frame.redirect_file, "w") as sys.stdout:
+                    getattr(frame, command)(args)
+            else:
+                getattr(frame, command)(args)
+            
+            if frame.redirect_file != "":
+                frame.redirect_file = ""
+                sys.stdout = STDOUT
+        elif frame.check_for_exe_redirect_wrapper(command, args):
+            pass
         else:
             print(f"Command {command} not found.")
+
     except Exception as e:
         print(e)
