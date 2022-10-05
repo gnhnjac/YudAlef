@@ -1,0 +1,3 @@
+PATH=I:\YudBet\MyShell\Scripts\;
+HOME=C:\users\amikr
+SHELL_VERSION=1.0

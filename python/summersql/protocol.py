@@ -1,4 +1,3 @@
-# we do a little trolling
 
 # Client side requests
 class User:
