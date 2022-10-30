@@ -1,7 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <md5.c>
+#include "md5.c"
+
+/* Full message hasher */
+
+void md5_hash(const uint8_t message[], size_t len, uint32_t hash[static STATE_LEN]) {
+	hash[0] = UINT32_C(0x67452301);
+	hash[1] = UINT32_C(0xEFCDAB89);
+	hash[2] = UINT32_C(0x98BADCFE);
+	hash[3] = UINT32_C(0x10325476);
+	
+	#define LENGTH_SIZE 8  // In bytes
+	
+	size_t off;
+	for (off = 0; len - off >= BLOCK_LEN; off += BLOCK_LEN)
+		md5_compress(&message[off], hash);
+	
+	uint8_t block[BLOCK_LEN] = {0};
+	size_t rem = len - off;
+	if (rem > 0)
+		memcpy(block, &message[off], rem);
+	
+	block[rem] = 0x80;
+	rem++;
+	if (BLOCK_LEN - rem < LENGTH_SIZE) {
+		md5_compress(block, hash);
+		memset(block, 0, sizeof(block));
+	}
+	
+	block[BLOCK_LEN - LENGTH_SIZE] = (uint8_t)((len & 0x1FU) << 3);
+	len >>= 5;
+	for (int i = 1; i < LENGTH_SIZE; i++, len >>= 8)
+		block[BLOCK_LEN - LENGTH_SIZE + i] = (uint8_t)(len & 0xFFU);
+	md5_compress(block, hash);
+}
 
 void to_hex(char* dest, const uint8_t* values, size_t val_len) {
     for (int i = 0; i < val_len; i++)
