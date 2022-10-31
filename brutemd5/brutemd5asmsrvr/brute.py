@@ -91,6 +91,10 @@ def send_death_message_to_srvr():
 
     s.send(b'D')
 
+atexit.register(send_death_message_to_srvr)
+signal.signal(signal.SIGTERM, send_death_message_to_srvr)
+signal.signal(signal.SIGINT, send_death_message_to_srvr)
+
 threads = []
 t = threading.Thread(target=handle_process, args=[True])
 t.start()
@@ -104,7 +108,3 @@ for t in threads:
     t.join()
 
 input()
-
-atexit.register(send_death_message_to_srvr)
-signal.signal(signal.SIGTERM, send_death_message_to_srvr)
-signal.signal(signal.SIGINT, send_death_message_to_srvr)
