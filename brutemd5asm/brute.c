@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
+#include <math.h>
 
 /* Function prototypes */
 
@@ -15,11 +16,13 @@ void md5_hash(const uint8_t message[], size_t len, uint32_t hash[static STATE_LE
 
 extern void md5_compress(const uint8_t block[static BLOCK_LEN], uint32_t state[static STATE_LEN]);
 
-int cmpuint8_t(const uint8_t* v1, const uint8_t* v2, size_t len);
-
 void to_hex(char* dest, const uint8_t* values, size_t val_len);
 
-void little_to_big(uint32_t *array, int len);
+uint32_t *hex_to_md5_little(const char *hex);
+
+uint32_t hex2int(const char *hex);
+
+int getNum(char ch);
 
 int main(int argc, char **argv) {
     if (argc < 3)
@@ -27,57 +30,111 @@ int main(int argc, char **argv) {
 
     unsigned long minrange = (unsigned long)atoi(argv[1]);
     unsigned long maxrange = (unsigned long)atoi(argv[2]);
- 
-    char *desiredhash = "EC9C0F7EDCC18A98B1F31853B1813301";
+    uint32_t *desiredhash = hex_to_md5_little("EC9C0F7EDCC18A98B1F31853B1813301");
     char *number = malloc(20 + 1);
-    char *hex = malloc(32 + 1);
 
     for (unsigned long i = minrange; i < maxrange; i++)
     {
         sprintf(number, "%lu", i);
-        size_t len = strlen(number);
-        uint8_t *uint_msg = (uint8_t *)number;
-        
         uint32_t hash[STATE_LEN];
-		md5_hash(uint_msg, len, hash);
-        little_to_big(hash, STATE_LEN);
-
-        sprintf(hex, "%08X%08X%08X%08X", hash[0],hash[1],hash[2],hash[3]);
-
-        if (strcmp(hex, desiredhash) == 0)
+		md5_hash((uint8_t *)number, strlen(number), hash);
+        if (memcmp(hash, desiredhash, 4) == 0)
         {
                 printf("%lu", i);
-                free(hex);
                 free(number);
                 free(desiredhash);
                 return 0;
         }
     }
-    free(hex);
     free(number);
     free(desiredhash);
 	return 1;
 }
 
-void little_to_big(uint32_t *array, int len)
+int getNum(char ch)
 {
+    int num = 0;
+    if (ch >= '0' && ch <= '9') {
+        num = ch - 0x30;
+    }
+    else {
+        switch (ch) {
+        case 'A':
+        case 'a':
+            num = 10;
+            break;
+        case 'B':
+        case 'b':
+            num = 11;
+            break;
+        case 'C':
+        case 'c':
+            num = 12;
+            break;
+        case 'D':
+        case 'd':
+            num = 13;
+            break;
+        case 'E':
+        case 'e':
+            num = 14;
+            break;
+        case 'F':
+        case 'f':
+            num = 15;
+            break;
+        default:
+            num = 0;
+        }
+    }
+    return num;
+}
 
+//function : hex2int
+//this function will return integer value against
+//hexValue - which is in string format
+
+uint32_t hex2int(const char *hex)
+{   
+
+    size_t len = strlen(hex);
+    uint32_t res = 0;
     for (int i = 0; i < len; i++)
     {
 
-        uint32_t num = *(array + i);
-        uint32_t b0,b1,b2,b3;
-
-        b0 = (num & 0x000000ff) << 24u;
-        b1 = (num & 0x0000ff00) << 8u;
-        b2 = (num & 0x00ff0000) >> 8u;
-        b3 = (num & 0xff000000) >> 24u;
-
-        *(array + i) = b0 | b1 | b2 | b3;
-
+        res += getNum(hex[len-1-i]) * pow(16, i);
 
     }
 
+    return res;
+}
+
+void big_to_little(uint32_t *num)
+{
+    uint32_t before = *num;
+    *num = ((before>>24)&0xff) | // move byte 3 to byte 0
+                    ((before<<8)&0xff0000) | // move byte 1 to byte 2
+                    ((before>>8)&0xff00) | // move byte 2 to byte 1
+                    ((before<<24)&0xff000000); // byte 0 to byte 3
+
+}
+
+uint32_t *hex_to_md5_little(const char *hex)
+{
+
+    uint32_t *resbuff = malloc(4*sizeof(uint32_t *));
+
+    for (int i = 0; i < 4; i++)
+    {
+        char *buffer = (char *)malloc(8 + 1);
+        memcpy(buffer, hex + 8*i, 8);
+        *(buffer + 8) = '\x0';
+        *(resbuff + i) = hex2int(buffer);
+        big_to_little(resbuff + i);
+        free(buffer);
+    }
+
+    return resbuff;
 }
 
 /* Full message hasher */
@@ -118,54 +175,4 @@ void to_hex(char* dest, const uint8_t* values, size_t val_len) {
     {
         sprintf((dest + 2*i),"%02X",*(values + i));
     }
-}
-
-uint8_t* hex_str_to_uint8(const char* string) {
-
-    if (string == NULL)
-        return NULL;
-
-    size_t slength = strlen(string);
-    if ((slength % 2) != 0) // must be even
-        return NULL;
-
-    size_t dlength = slength / 2;
-
-    uint8_t* data = (uint8_t*)malloc(dlength);
-
-    memset(data, 0, dlength);
-
-    size_t index = 0;
-    while (index < slength) {
-        char c = string[index];
-        int value = 0;
-        if (c >= '0' && c <= '9')
-            value = (c - '0');
-        else if (c >= 'A' && c <= 'F')
-            value = (10 + (c - 'A'));
-        else if (c >= 'a' && c <= 'f')
-            value = (10 + (c - 'a'));
-        else
-            return NULL;
-
-        data[(index / 2)] += value << (((index + 1) % 2) * 4);
-
-        index++;
-    }
-
-    return data;
-}
-
-int cmpuint8_t(const uint8_t* v1, const uint8_t* v2, size_t len)
-{
-
-    for (int i = 0; i < len; i++)
-    {
-
-        if ( *(v1 + i) != *(v2 + i) )
-            return 1;
-
-    }
-    return 0;
-
 }

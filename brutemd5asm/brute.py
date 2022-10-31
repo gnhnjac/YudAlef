@@ -5,7 +5,7 @@ import timeit
 
 current_number = 0
 CHECKS_PER_SESH = 10_000_000
-NUM_OF_PROCESSES = 4
+NUM_OF_PROCESSES = 8
 lock = threading.Lock()
 found = False
 processes = []
@@ -28,8 +28,8 @@ def handle_process(log=False):
         buff = b''
         proc = subprocess.Popen(['a.out', str(minrange), str(maxrange)], stdout=subprocess.PIPE)
         processes.append(proc)
-        #p = psutil.Process(proc.pid)
-        #p.nice(psutil.HIGH_PRIORITY_CLASS)
+        p = psutil.Process(proc.pid)
+        p.nice(psutil.HIGH_PRIORITY_CLASS)
         
         buff, err = proc.communicate()
         
