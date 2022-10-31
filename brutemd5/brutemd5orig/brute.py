@@ -5,7 +5,7 @@ import timeit
 
 current_number = 0
 CHECKS_PER_SESH = 10_000_000
-NUM_OF_PROCESSES = 8
+NUM_OF_PROCESSES = 4
 lock = threading.Lock()
 found = False
 processes = []

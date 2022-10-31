@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
         sprintf(number, "%lu", i);
         uint32_t hash[STATE_LEN];
 		md5_hash((uint8_t *)number, strlen(number), hash);
-        if (memcmp(hash, desiredhash, 4) == 0)
+        if (memcmp(hash, desiredhash, 16) == 0)
         {
                 printf("%lu", i);
                 free(number);
