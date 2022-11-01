@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
     for (unsigned long i = minrange; i < maxrange; i++)
     {
-        sprintf(number, "%lu", i);
+        sprintf(number, "%010lu", i);
         uint32_t hash[STATE_LEN];
 		md5_hash((uint8_t *)number, strlen(number), hash);
         if (memcmp(hash, desiredhash, 16) == 0)
