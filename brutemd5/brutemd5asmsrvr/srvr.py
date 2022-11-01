@@ -54,6 +54,9 @@ def handle_conn(conn, addr):
             if len(req) == 0:
                 print(f"Computer {addr} disconnected.")
                 return
+                
+            if found:
+                return
 
             if req == b'R':
                 

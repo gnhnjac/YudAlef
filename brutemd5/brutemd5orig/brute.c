@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
 	MD5Context ctx;
     for (unsigned long i = minrange; i < maxrange; i++)
     {
-        sprintf(number, "%lu", i);
+        sprintf(number, "%010lu", i);
         //uint8_t *output = md5String(number);
 		md5Init(&ctx);
 		md5Update(&ctx, (uint8_t *)number, strlen(number));
