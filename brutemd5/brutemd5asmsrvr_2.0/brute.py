@@ -7,16 +7,19 @@ import socket
 import struct
 import signal
 import atexit
+import multiprocessing
 
 
 CURRENT_NUMBER = 0
 FINISH_NUMBER = 0
 AMT_PER_CHECK = 0
 CHECKS_PER_SESH = 10_000_000
-NUM_OF_PROCESSES = 4
+NUM_OF_PROCESSES = multiprocessing.cpu_count()#4
 ADDR = 'localhost'
 PORT = 2022
 LOCK = threading.Lock()
+
+print(f"Started client with {NUM_OF_PROCESSES} cores.")
 
 found = False
 processes = []
@@ -27,7 +30,22 @@ amt_per_check_length_packet = s.recv(9)[:-1]
 amt_per_check_packet = s.recv(int(amt_per_check_length_packet))
 AMT_PER_CHECK = struct.unpack("!I",amt_per_check_packet)[0]
 s.send(b'A')
-        
+
+print("Completed handshake with server...")
+
+while True:
+    msg = s.recv(1)
+    if len(msg) == 0:
+        print("Server stopped running for some reason.")
+        s.close()
+        exit(1)
+    
+    if msg == b'P':
+        print("Ping from server...")
+    
+    elif msg == b'S':
+        print("Starting work...")
+        break
 
 def handle_process(log=False):
     global CURRENT_NUMBER

@@ -2,13 +2,14 @@ import socket
 import threading
 import struct
 import timeit
+import time
 
 AMT_PER_PC = 200_000_000
 NUMBER = 0
 LOCK = threading.Lock()
 PORT = 2022
-
-STARTTIME = timeit.default_timer()
+NUM_OF_COMPUTERS = 1
+CONNECTED = 0
 
 s = socket.socket()
 
@@ -26,14 +27,27 @@ pending_ranges = []
 def get_prefix(bytes):
     return str(len(bytes)).zfill(8).encode() + b'|'
 
+def is_socket_closed(sock: socket.socket) -> bool:
+    try:
+        sock.send(b"P")
+        return False
+    except:
+    	return True
+
 def handle_conn(conn, addr):
 
     global s
     global found
     global NUMBER
     global STARTTIME
+    global NUM_OF_COMPUTERS
+    global CONNECTED
     
     CURRENTLY_CHECKING = -1
+    
+    LOCK.acquire()
+    CONNECTED += 1
+    LOCK.release()
 
     try:
         amount = struct.pack("!I", AMT_PER_PC)
@@ -42,17 +56,33 @@ def handle_conn(conn, addr):
         conn.send(prefix + amount)
         ack = conn.recv(1)
         if len(ack) == 0:
-            print(f"Computer {addr} disconnected.")
+            LOCK.acquire()
+            CONNECTED -= 1
+            print(f"Computer {addr} disconnected. Currently at {CONNECTED} computers.")
+            LOCK.release()
             return
 
-        print(f"Handshake established with {addr}.")
-
+        print(f"Handshake established with {addr}. Currently at {CONNECTED} computers.")
+        
+        while CONNECTED < NUM_OF_COMPUTERS:
+            if is_socket_closed(conn):
+                LOCK.acquire()
+                CONNECTED -= 1
+                print(f"Computer {addr} disconnected. Currently at {CONNECTED} computers.")
+                LOCK.release()
+                return
+            time.sleep(1)
+        
+        conn.send(b'S')
 
         while not found:
 
             req = conn.recv(1)
             if len(req) == 0:
-                print(f"Computer {addr} disconnected.")
+                LOCK.acquire()
+                CONNECTED -= 1
+                print(f"Computer {addr} disconnected. Currently at {CONNECTED} computers.")
+                LOCK.release()
                 return
                 
             if found:
@@ -74,8 +104,9 @@ def handle_conn(conn, addr):
 
                 ack = conn.recv(1)
                 if len(ack) == 0:
+                    CONNECTED -= 1
+                    print(f"Computer {addr} disconnected. Currently at {CONNECTED} computers.")        
                     LOCK.release()
-                    print(f"Computer {addr} disconnected.")                
                     return
                 
                 if not took_from_pending:
@@ -97,18 +128,32 @@ def handle_conn(conn, addr):
                 return
 
             elif req == b'D':
-                print(f"Computer {addr} disconnected.")
+                LOCK.acquire()
+                CONNECTED -= 1
+                print(f"Computer {addr} disconnected. Currently at {CONNECTED} computers.")
+                LOCK.release()
                 if CURRENTLY_CHECKING != -1:
                     pending_ranges.append(CURRENTLY_CHECKING)
                 return
 
     except ConnectionResetError:
-        print(f"Computer {addr} disconnected.")
+        LOCK.acquire()
+        CONNECTED -= 1
+        print(f"ConnectionResetError: Computer {addr} disconnected. Currently at {CONNECTED} computers.")
+        LOCK.release()
+        if CURRENTLY_CHECKING != -1:
+            pending_ranges.append(CURRENTLY_CHECKING)           
+        return
+    except Exception as e:
+        LOCK.acquire()
+        CONNECTED -= 1
+        print(f"Error: {e}\nComputer {addr} disconnected. Currently at {CONNECTED} computers.")
+        LOCK.release()
         if CURRENTLY_CHECKING != -1:
             pending_ranges.append(CURRENTLY_CHECKING)           
         return
 
-while not found:
+while CONNECTED < NUM_OF_COMPUTERS:
 
     conn, addr = s.accept()
 
@@ -117,6 +162,8 @@ while not found:
     t.start()
 
     threads.append(t)
+    
+STARTTIME = timeit.default_timer()
 
 for t in threads:
 
