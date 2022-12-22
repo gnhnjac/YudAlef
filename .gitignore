@@ -518,3 +518,7 @@ smiling/
 not_smiling/
 smiling_test/
 not_smiling_test/
+
+# sysinternals
+
+SysinternalsSuite/
