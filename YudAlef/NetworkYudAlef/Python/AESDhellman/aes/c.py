@@ -7,7 +7,7 @@ import socket
 
 
 PORT = 5555
-IP = '192.168.0.42'
+IP = '192.168.1.131'
 
 threads = []
 

@@ -6,8 +6,8 @@ import random
 import socket
 
 
-PORT = 6060
-IP = '192.168.0.115'
+PORT = 5555
+IP = '127.0.0.1'
 
 threads = []
 
