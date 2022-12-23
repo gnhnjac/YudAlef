@@ -1,3 +1,5 @@
+bits 16
+
 ; ===================================
 ; PRINTS OUT A HEX WORD TO THE SCREEN
 ; PARMAMS: WORD NUMBER
@@ -18,16 +20,16 @@ print_hex_word:
 _phw_loop:
 
 	mov bx, ax
-	and bx, 0xF
+	and bx, 0xF ; leave in single hex digit
 
 	push ax
 	mov al, [HEX_TABLE+bx]
 	mov bx, HEX_OUT
-	mov [bx+si+2], al
+	mov [bx+si+2], al ; place hex digit in appropriate place in HEX_OUT according to HEX_TABLE
 	pop ax
 
-	dec si
-	shr ax, 4
+	dec si ; move to next hex pos in HEX_OUT
+	shr ax, 4 ; move to next hex digit
 
 	cmp ax, 0
 	jnz _phw_loop

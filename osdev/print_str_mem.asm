@@ -1,5 +1,7 @@
+bits 16
+
 ; ===================================
-; PRINTS OUT A STRING FROM MEMORY
+; PRINTS OUT A STRING FROM MEMORY (null terminated)
 ; PARMAMS: MESSAGE OFFSET
 ; ===================================
 print_str_mem:
@@ -16,10 +18,10 @@ print_str_mem:
 
 _printsm_loop:
 	mov bx, txt
-	mov al, byte[bx + si]
-	cmp al, 0
+	mov al, byte[bx + si] ; put in al the char in our memory + offset
+	cmp al, 0 ; null terminator
 	jz _printsm_end
-	xor bx, bx
+	xor bx, bx ; page 0
 	int 0x10
 
 	inc si

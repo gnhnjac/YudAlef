@@ -1,48 +1,36 @@
 org 0x7c00
+bits 16
+BEGIN_RM:
+	mov bp, 0x9000 ; init the stack
+	mov sp, bp
 
-jmp main
+	push rm_msg
+	call print_str_mem
 
-%include "utils/print/print_str_mem.asm"
-%include "utils/hex/print_hex_word.asm"
-%include "utils/disk/disk_load.asm"
+	; switch to 32 bit protected mode
+	call switch_to_pm
 
-data:
-	msg db 'on god!',0xa, 0xd,0
-	BOOT_DRIVE db 0
 
-text:
+bits 32
+BEGIN_PM:
 
-	main:
+	push pm_msg
+	call print_str_mem32
+	jmp $
 
-		mov [BOOT_DRIVE], dl
-		xor dh, dh
-		mov bp, 0x8000
-		mov sp, bp
+; 16 bit rm files
+%include "print_str_mem.asm"
+%include "print_hex_word.asm"
+%include "gdt.asm"
 
-		push 0
-		push 0x9000
-		push dx
-		push 5
-		call disk_load
+; 32 bit pm files
+%include "print_str_mem32.asm"
+%include "switch_to_pm.asm"
 
-		push word[0x9000]
-		call print_hex_word
-
-		push word[0x9000 + 512]
-		call print_hex_word
-
-		; push msg
-		; call print_str_mem
-
-		; push 0x1d0b
-		; call print_hex_word
-
-		jmp $
-
+; Global variables
+	rm_msg db '16-bit Real Mode running...',0xa, 0xd,0
+	pm_msg db 'Successfully switched to 32-bit protected mode!', 0
 
 times 510-($-$$) db 0
 
 dw 0xaa55
-
-times 256 dw 0xdada
-times 256 dw 0xface
