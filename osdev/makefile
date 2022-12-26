@@ -1,7 +1,7 @@
 # Automatically expand to a list of existing files that
 # match the patterns
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
-HEADERS = $(wildcard kernel/*.h drivers/*.h)
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c utils/*.c)
+HEADERS = $(wildcard Include/*.h)
 
 # TODO : Make sources dep on all header files.
 
@@ -25,8 +25,8 @@ os-image: boot/boot_sect.bin kernel.bin
 # entry code is right at the start of the binary.
 # $^ is substituted with all of the target's dependency files
 kernel.bin: kernel/kernel_entry.o ${OBJ}
-	ld -T NUL -o kernel.tmp -Ttext 0x1000 $^
-	objcopy -O binary -j .text kernel.tmp kernel.bin
+	ld -o kernel.tmp -Ttext 0x1000 $^
+	objcopy -O binary kernel.tmp kernel.bin
 	del /f kernel.tmp
 
 # Generic rule for building ’somefile.o’ from ’somefile.c’

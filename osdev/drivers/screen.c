@@ -1,9 +1,11 @@
 #include "screen.h"
 #include "low_level.h"
 #include "memory.h"
+#include "std.h"
+#include "strings.h"
 
 /* Print a char on the screen at col, row, or at cursor position */
-void print_char(char character, int row, int col, char attribute_byte) 
+void print_char(const char character, int row, int col, char attribute_byte) 
 {
 	/* Create a byte ( char ) pointer to the start of video memory */
 	char *vidmem = (char *)VIDEO_ADDRESS;
@@ -26,12 +28,12 @@ void print_char(char character, int row, int col, char attribute_byte)
 	if (character == '\n') {
 
 		int current_row = offset / (2 * MAX_COLS);
-		offset = get_screen_offset(current_row, 79);
+		offset = get_screen_offset(current_row, MAX_COLS-1);
 	// Otherwise , write the character and its attribute byte to
 	// video memory at our calculated offset .
 	} else {
-		vidmem [offset] = character ;
-		vidmem [offset + 1] = attribute_byte ;
+		vidmem [offset] = character;
+		vidmem [offset + 1] = attribute_byte;
 	}
 	// Update the offset to the next character cell , which is
 	// two bytes ahead of the current cell .
@@ -77,29 +79,89 @@ void set_cursor(int offset)
 	port_byte_out(REG_SCREEN_CTRL, 14);
 	port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset >> 8));
 	port_byte_out(REG_SCREEN_CTRL, 15);
-	port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset & 0xF));
+	port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset));
 }
 
-void print_at(char *msg, int row, int col) 
+void putchar(char c)
+{
+
+	print_char(c, -1, -1, WHITE_ON_BLACK);
+
+}
+
+void print_at(const char *msg, int row, int col) 
 {
 	// maybe redundant
 	if ( col >= 0 && row >= 0) {
 		set_cursor(get_screen_offset(row, col));
 	}
-
-	print_char(msg[0], row, col, WHITE_ON_BLACK);
-	int i = 0;
-	while (msg[i] != 0)
+	while (*msg)
 	{
 
-		print_char(msg[i++], row, col, WHITE_ON_BLACK);
+		print_char(*msg++, row, col, WHITE_ON_BLACK);
 	}
 }
 
-void print(char *msg) 
+void print(const char *msg) 
 {
 
 	print_at(msg, -1, -1);
+
+}
+
+int printf(const char *fmt, const void *args)
+{
+
+	const char *orig = fmt;
+
+	while (*fmt)
+	{
+
+		if (*fmt == '%' && ((*(fmt-1) != '\\' && fmt != orig) || fmt == orig))
+		{
+
+			fmt++;
+
+			if (*fmt == 'd')
+			{
+
+				char buff[30];
+				int_to_dec(*((int *)args), buff);
+				print(buff);
+				(int *)args++;
+
+			}
+			else if(*fmt == 'c')
+			{
+				putchar(*((char *)args));
+				(char *)args++;
+
+			}
+			else
+			{
+				printf("Unknown format type \\%%c", fmt);
+				return STDERR;
+
+			}
+
+		}
+		else if(*fmt == '\\')
+		{	
+			fmt++;
+			continue;
+		}
+		else
+		{
+
+			putchar(*fmt);
+
+		}
+
+		fmt++;
+
+	}
+
+	return STDOK;
 
 }
 
@@ -128,7 +190,7 @@ int handle_scrolling(int cursor_offset)
 	for (int i = 1; i < MAX_ROWS; i++)
 	{
 
-		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0), MAX_COLS*2), 2*MAX_COLS);
+		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
 

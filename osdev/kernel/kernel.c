@@ -1,17 +1,39 @@
 #include "screen.h"
+#include "strings.h"
 
-void start () {
+void kmain();
+
+void entry()
+{
+
+	kmain();
+
+}
+
+
+void kmain() {
 	// Create a pointer to a char , and point it to the first text cell of video memory (i.e. the top - left of the screen )
 	char *video_memory = (char *)0xb8000;
-	// At the address pointed to by video_memory , store the character ’X’
-	char *abc = "z";
-	*video_memory = *(abc);
-	*(video_memory + 2) = 'Y';
-	print("HEY!");
-	//clear_screen();
+	clear_screen();
 
-	//char *msg = "hey!";
+	for (int i = 0; i < 1000; i++)
+	{	
+		char args[sizeof(char) + sizeof(int)];
+		args[0] = i%26;
+		if (i % 3 == 0)
+		{
+			args[0] += 'A';
 
-	//print(msg);
-	//print_at(msg, -1, -1);
+		}
+		else
+		{
+
+			args[0] += 'a';
+
+		}
+		*((int *)((char *)args + 1)) = i;
+		printf("Hello, world! character: %c, iteration: %d\n", (const void *)&args);
+		for (int j = 0; j < 10000000; j++)
+			continue;
+	}
 }
