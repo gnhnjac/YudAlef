@@ -1,0 +1,21 @@
+start:
+add ax, zombie_code-start
+mov [0x206], ax
+mov ax, 0x5ECC
+mov dx, 0xC681
+mov cx, 0x26FF
+push ds
+pop es
+std
+int 87h
+dw 0xCCCC
+zombie_code:
+mov bx, ax
+mov byte[bx+11], 0
+mov ax, 0x5ECC
+mov dx, 0xC681
+mov cx, 0x26FF
+push ds
+pop es
+std
+int 87h
