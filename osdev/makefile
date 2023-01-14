@@ -24,7 +24,7 @@ os-image: boot/boot_sect.bin kernel.bin
 # Link kernel object files into one binary, making sure the
 # entry code is right at the start of the binary.
 # $^ is substituted with all of the target's dependency files
-kernel.bin: kernel/kernel_entry.o ${OBJ}
+kernel.bin: kernel/kernel_entry.o kernel/v86.o ${OBJ}
 	ld -o kernel.tmp -Ttext 0x1000 $^
 	objcopy -O binary kernel.tmp kernel.bin
 	del /f kernel.tmp

@@ -1,7 +1,9 @@
 #include "strings.h"
 
-void int_to_dec(int n, char *buffer)
+void num_to_str(int n, char *buffer, int base)
 {
+	char digits[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+
 	int neg = 0;
 	if (n < 0)
 	{
@@ -14,7 +16,7 @@ void int_to_dec(int n, char *buffer)
 	{
 
 		n_of_digits++;
-		temp_n /= 10;
+		temp_n /= base;
 
 	} while (temp_n);
 
@@ -27,10 +29,10 @@ void int_to_dec(int n, char *buffer)
 	do
 	{	
 
-		int digit = n % 10 + '0';
+		int digit = digits[n%base];
 		*(buffer + n_of_digits - 1 - i) = digit;
 		i++;
-		n /= 10;
+		n /= base;
 
 	} while(n);
 

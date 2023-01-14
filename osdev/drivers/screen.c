@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include "screen.h"
 #include "low_level.h"
 #include "memory.h"
@@ -25,6 +26,7 @@ void print_char(const char character, int row, int col, char attribute_byte)
 	// If we see a newline character, set offset to the end of
 	// current row, so it will be advanced to the first col
 	// of the next row.
+	offset = handle_scrolling(offset);
 	if (character == '\n') {
 
 		int current_row = offset / (2 * MAX_COLS);
@@ -40,7 +42,6 @@ void print_char(const char character, int row, int col, char attribute_byte)
 	offset += 2;
 	// Make scrolling adjustment, for when we reach the bottom
 	// of the screen.
-	offset = handle_scrolling(offset);
 	// Update the cursor position on the screen device.
 	set_cursor(offset);
 }
@@ -61,10 +62,10 @@ int get_cursor()
 	// reg 15: which is the low byte of the cursor’s offset
 	// Once the internal register has been selected , we may read or
 	// write a byte on the data register .
-	port_byte_out(REG_SCREEN_CTRL, 14);
-	int offset = port_byte_in(REG_SCREEN_DATA) << 8;
-	port_byte_out(REG_SCREEN_CTRL, 15);
-	offset += port_byte_in(REG_SCREEN_DATA);
+	outb(REG_SCREEN_CTRL, 14);
+	int offset = inb(REG_SCREEN_DATA) << 8;
+	outb(REG_SCREEN_CTRL, 15);
+	offset += inb(REG_SCREEN_DATA);
 	// Since the cursor offset reported by the VGA hardware is the
 	// number of characters, we multiply by two to convert it to
 	// a character cell offset.
@@ -76,10 +77,33 @@ void set_cursor(int offset)
 	offset /= 2; // Convert from cell offset to char offset.
 	// This is similar to get_cursor, only now we write
 	// bytes to those internal device registers.
-	port_byte_out(REG_SCREEN_CTRL, 14);
-	port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset >> 8));
-	port_byte_out(REG_SCREEN_CTRL, 15);
-	port_byte_out(REG_SCREEN_DATA, (unsigned char)(offset));
+	outb(REG_SCREEN_CTRL, 14);
+	outb(REG_SCREEN_DATA, (unsigned char)(offset >> 8));
+	outb(REG_SCREEN_CTRL, 15);
+	outb(REG_SCREEN_DATA, (unsigned char)(offset));
+}
+
+
+void enable_cursor(uint8_t cursor_start, uint8_t cursor_end)
+{
+	outb(0x3D4, 0x0A);
+	outb(0x3D5, (inb(0x3D5) & 0xC0) | cursor_start);
+ 
+	outb(0x3D4, 0x0B);
+	outb(0x3D5, (inb(0x3D5) & 0xE0) | cursor_end);
+}
+
+void disable_cursor()
+{
+	outb(0x3D4, 0x0A);
+	outb(0x3D5, 0x20);
+}
+
+void set_cursor_coords(int row, int col)
+{
+
+	return set_cursor(get_screen_offset(row, col));
+
 }
 
 void putchar(char c)
@@ -89,28 +113,40 @@ void putchar(char c)
 
 }
 
-void print_at(const char *msg, int row, int col) 
+void print_at(const char *msg, int row, int col, int attr_byte) 
 {
 	// maybe redundant
 	if ( col >= 0 && row >= 0) {
-		set_cursor(get_screen_offset(row, col));
+		set_cursor_coords(row, col);
 	}
+
 	while (*msg)
 	{
 
-		print_char(*msg++, row, col, WHITE_ON_BLACK);
+		print_char(*msg++, row, col, attr_byte);
 	}
 }
 
 void print(const char *msg) 
 {
 
-	print_at(msg, -1, -1);
+	print_at(msg, -1, -1, 0);
 
 }
 
-int printf(const char *fmt, const void *args)
+void print_color(const char *msg, int attr_byte)
 {
+
+	print_at(msg, -1, -1, attr_byte);
+
+}
+
+
+int printf(const char *fmt, ...)
+{
+
+	va_list valist;
+	va_start(valist, fmt);
 
 	const char *orig = fmt;
 
@@ -120,28 +156,32 @@ int printf(const char *fmt, const void *args)
 		if (*fmt == '%' && ((*(fmt-1) != '\\' && fmt != orig) || fmt == orig))
 		{
 
-			fmt++;
+			char buff[30];
 
-			if (*fmt == 'd')
+			switch(*++fmt)
 			{
 
-				char buff[30];
-				int_to_dec(*((int *)args), buff);
-				print(buff);
-				(int *)args++;
+				case 'd':
 
-			}
-			else if(*fmt == 'c')
-			{
-				putchar(*((char *)args));
-				(char *)args++;
+					num_to_str(va_arg(valist, int), buff, 10);
+					print(buff);
+					break;
 
-			}
-			else
-			{
-				printf("Unknown format type \\%%c", fmt);
-				return STDERR;
+				case 'c':
 
+					putchar((char)va_arg(valist, int));
+					break;
+
+				case 'x':
+
+					num_to_str(va_arg(valist, int), buff, 16);
+					print(buff);
+					break;
+
+				default:
+
+					printf("Unknown format type \\%%c", fmt);
+					return STDERR;
 			}
 
 		}

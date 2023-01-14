@@ -1,6 +1,7 @@
 %DEFINE pushbxcx 0x5153
 %DEFINE callsp 0xD4FF
 start:
+stosw
 mov si, ax
 add ax, jmp_here
 mov word[si+mem], ax
@@ -36,7 +37,7 @@ jmp_here:
 mov bp, sp
 cmp byte[bp-4], 0x69
 jnz call_lbl
-sub sp, end_mem-jmp_here+8
+sub sp, end_mem-jmp_here+35
 call_lbl:
 call far [si+mem-zombie_code]
 call_far_end:

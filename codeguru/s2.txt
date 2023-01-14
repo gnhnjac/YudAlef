@@ -1,0 +1,39 @@
+start:
+mov dx, 3
+mov bx, ax
+push es
+pop ds
+lodsw
+mov si, 0x1F00
+push cs
+pop ds
+push cs
+pop ss
+mov sp, bx
+add bx, mem-start
+mov [bx], sp
+add word[bx], jmp_here-start
+jmp_here:
+mov bp, sp
+cmp byte[bp-4], 0x69
+jnz call_lbl
+sub sp, end_mem-jmp_here+8
+call_lbl:
+cmp dx, 0
+jnz end
+mov dx, 3
+dec si
+cmp si, 0
+jnz end
+mov si, ax
+mov word[si+0x44], 0xCCCC
+end:
+dec dx
+call far [bx]
+call_far_end:
+mem:
+dw 0xCCCC
+dw 0x1000
+end_mem:
+dw 0x6969
+dw 0x6969
