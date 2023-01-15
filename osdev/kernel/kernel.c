@@ -1,5 +1,6 @@
 #include "screen.h"
 #include "strings.h"
+#include "time.h"
 #include <stdint.h>
 
 void kmain();
@@ -38,16 +39,15 @@ void display_logo()
 
 			}
 
-			for (int k = 0; k < 0xFFFF; k++)
-				continue;
+			sleep(1);
 		}
 
 	}
 	char *msg = "Welcome to my operating system!";
 	set_cursor_coords(22, 40 - strlen(msg)/2 - 1);
 	print_color(msg, 0x3B);
-
-
+	sleep(100);
+	blink_screen();
 	return;
 
 }

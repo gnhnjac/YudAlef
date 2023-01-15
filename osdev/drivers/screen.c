@@ -46,6 +46,38 @@ void print_char(const char character, int row, int col, char attribute_byte)
 	set_cursor(offset);
 }
 
+void blink_screen()
+{
+
+	char *vidmem = (char *)VIDEO_ADDRESS;
+
+	char blinking_byte = 0x80; 
+
+	for (int i = 0; i < MAX_COLS*MAX_ROWS; i++)
+	{
+
+		*(vidmem + i*2 + 1) |= blinking_byte;
+
+	}
+
+}
+
+void unblink_screen()
+{
+
+	char *vidmem = (char *)VIDEO_ADDRESS;
+
+	char blinking_byte = 0x80; 
+
+	for (int i = 0; i < MAX_COLS*MAX_ROWS; i++)
+	{
+
+		*(vidmem + i*2 + 1) &= ~blinking_byte;
+
+	}
+
+}
+
 int get_screen_offset(int row, int col) 
 {
 
