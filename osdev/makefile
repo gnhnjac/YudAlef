@@ -1,7 +1,7 @@
 # Automatically expand to a list of existing files that
 # match the patterns
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c utils/*.c)
-HEADERS = $(wildcard Include/*.h)
+HEADERS = $(wildcard deps/*.h)
 
 # TODO : Make sources dep on all header files.
 
@@ -35,7 +35,7 @@ kernel.bin: kernel/kernel_entry.o kernel/v86.o ${OBJ}
 
 # Generic rule for building ’somefile.o’ from ’somefile.c’
 %.o: %.c ${HEADERS}
-	@gcc -ffreestanding -c $< -I ./Include -o $@
+	@gcc -ffreestanding -c $< -I ./deps -o $@
 
 # Build our kernel entry object file.
 #$< is the first dependancy and $@ is the target file
