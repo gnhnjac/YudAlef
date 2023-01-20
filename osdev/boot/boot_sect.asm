@@ -29,7 +29,7 @@ load_kernel: ; note that dx is changed here!
 	push 0 ; es offset
 	push KERNEL_OFF ; bx offset
 	push dx ; drive number
-	push 40 ; sectors to be read
+	push 50 ; sectors to be read
 	call disk_load
 
 	ret

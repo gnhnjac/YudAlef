@@ -27,3 +27,4 @@ void print_color(const char *msg, int attr_byte);
 int printf(const char *fmt, ...);
 void clear_screen();
 int handle_scrolling(int cursor_offset);
+void display_logo();

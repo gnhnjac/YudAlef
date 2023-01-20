@@ -14,7 +14,7 @@ source_file = sys.argv[1];
 
 source_file_name = path.basename(source_file);
 
-header_file = Path(f'Include/{source_file_name[:-1]}h')
+header_file = Path(f'deps/{source_file_name[:-1]}h')
 
 header_file.touch(exist_ok=True)
 
