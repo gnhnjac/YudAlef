@@ -23,7 +23,7 @@ header_matches = []
 
 with open(source_file, 'r') as f:
 	for line in f.readlines():
-		found = re.findall(r'^[^\(\)\t(    )]+ [^\(\)]+ *\([^\(\)]*\) *{? *$', line)
+		found = re.findall(r'^[^\(\)\t(    )]+ [^\(\)]+ *\(.*\) *{? *$', line)
 		if found:
 			source_matches.append(remove_last_occurrence(found[0], '{').rstrip())
 

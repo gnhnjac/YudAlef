@@ -1,7 +1,7 @@
 #include "screen.h"
 #include "idt.h"
-#include "isrs.h"
-#include "time.h"
+#include "irq.h"
+#include "timer.h"
 #include <stdint.h>
 
 void kmain();
@@ -15,10 +15,11 @@ void entry()
 
 void kmain() {
 	idt_install();
+	irq_install();
+	timer_install();
 	disable_cursor();
 	display_logo();
-	for (;;);
-
+	for(;;);
 	// for (int i = 0; i < 1000; i++)
 	// {	
 
@@ -36,8 +37,8 @@ void kmain() {
 	// 	}
 	// 	int lolly = i;
 	// 	printf("Hello, world! character: %c, iteration: 0x%x\n", lol, lolly);
-	// 	for (int j = 0; j < 10000000; j++)
-	// 		continue;
+	// 	sleep(100);
+
 	// }
 
 	return;

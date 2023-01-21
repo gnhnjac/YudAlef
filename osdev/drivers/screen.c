@@ -4,7 +4,7 @@
 #include "memory.h"
 #include "std.h"
 #include "strings.h"
-#include "time.h"
+#include "timer.h"
 
 char logo_pixels[];
 
@@ -54,7 +54,7 @@ void blink_screen()
 
 	char *vidmem = (char *)VIDEO_ADDRESS;
 
-	char blinking_byte = 0x80; 
+	unsigned char blinking_byte = 0b10000000; 
 
 	for (int i = 0; i < MAX_COLS*MAX_ROWS; i++)
 	{
@@ -310,14 +310,14 @@ void display_logo()
 
 			}
 
-			sleep(1);
+			wait_milliseconds(60);
 		}
 
 	}
 	char *msg = "Welcome to my operating system!";
 	set_cursor_coords(22, 40 - strlen(msg)/2 - 1);
 	print_color(msg, 0x3B);
-	sleep(100);
+	timer_wait(2);
 	blink_screen();
 	return;
 
