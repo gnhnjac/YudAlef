@@ -2,3 +2,4 @@
 # a floppy disk inserted into a computer at boot time .
 floppya : 1_44=os-image, status=inserted
 boot: a
+megs: 32

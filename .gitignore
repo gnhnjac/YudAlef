@@ -524,3 +524,7 @@ not_smiling_test/
 SysinternalsSuite/
 
 MinGW/
+
+$RECYCLE.BIN/
+
+NASM/

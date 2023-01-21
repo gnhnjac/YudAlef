@@ -5,6 +5,20 @@ extern _entry
 call _entry ; invoke main () in our C kernel
 jmp $ ; Hang forever when we return from the kernel
 
+extern _idt
+
+idtp:
+    dw 0x7FF ; (256*8)
+    dw _idt
+    dw 0
+
+global _idt_load
+
+_idt_load:
+    lidt [idtp]
+    sti
+    ret
+
 ; EXCEPTION IDT GATES
 global _isr0
 global _isr1
@@ -43,7 +57,6 @@ global _isr31
 
 ;  0: Divide By Zero Exception
 _isr0:
-    cli ; clear interrupts to prevent irqs from executing until we handle the exception.
     push byte 0    ; A normal ISR stub that pops a dummy error code to keep a
                    ; uniform stack frame
     push byte 0
@@ -51,187 +64,158 @@ _isr0:
 
 ;  1: Debug Exception
 _isr1:
-    cli
     push byte 0
     push byte 1
     jmp isr_common_stub
     
 ;  2: Non Maskable Interrupt Exception
 _isr2:
-   cli
    push byte 0
    push byte 2
    jmp isr_common_stub
 
 ; Breakpoint Exception
 _isr3:
-   cli
    push byte 0
    push byte 3
    jmp isr_common_stub
 
 ; Into Detected Overflow Exception
 _isr4:
-   cli
    push byte 0
    push byte 4
    jmp isr_common_stub
 
 ; Out of Bounds Exception
 _isr5:
-   cli
    push byte 0
    push byte 5
    jmp isr_common_stub
 
 ; Invalid Opcode Exception
 _isr6:
-   cli
    push byte 0
    push byte 6
    jmp isr_common_stub
 
 ; No Coprocessor Exception
 _isr7:
-   cli
    push byte 0
    push byte 7
    jmp isr_common_stub
 
 ;  8: Double Fault Exception (With Error Code!)
 _isr8:
-    cli
     push byte 8        ; This one already pushes an error code onto the stack so we only push the sequential number of the gate.
     jmp isr_common_stub
 
 ;  9: Coprocessor Segment Overrun Exception
 _isr9:
-   cli
    push byte 0
    push byte 9
    jmp isr_common_stub
 ; Bad TSS Exception
 _isr10:
-   cli
    push byte 10
    jmp isr_common_stub
 ; Segment Not Present Exception
 _isr11:
-   cli
    push byte 11
    jmp isr_common_stub
 ;  Stack Fault Exception
 _isr12:
-   cli
    push byte 12
    jmp isr_common_stub
 ;  General Protection Fault Exception
 _isr13:
-   cli
    push byte 13
    jmp isr_common_stub
 ;  Page Fault Exception
 _isr14:
-   cli
    push byte 14
    jmp isr_common_stub
 ;  Unknown Interrupt Exception
 _isr15:
-   cli
    push byte 0
    push byte 15
    jmp isr_common_stub
 ;  Coprocessor Fault Exception
 _isr16:
-   cli
    push byte 0
    push byte 16
    jmp isr_common_stub
 ;  Alignment Check Exception (486+)
 _isr17:
-   cli
+   push byte 0
    push byte 17
    jmp isr_common_stub
 ;  Machine Check Exception (Pentium/586+)
 _isr18:
-   cli
    push byte 0
    push byte 18
    jmp isr_common_stub
 ;  19-31: Reserved Exceptions
 _isr19:
-        cli
         push byte 0
         push byte 19
         jmp isr_common_stub
 
 _isr20:
-        cli
         push byte 0
         push byte 20
         jmp isr_common_stub
 
 _isr21:
-        cli
         push byte 0
         push byte 21
         jmp isr_common_stub
 
 _isr22:
-        cli
         push byte 0
         push byte 22
         jmp isr_common_stub
 
 _isr23:
-        cli
         push byte 0
         push byte 23
         jmp isr_common_stub
 
 _isr24:
-        cli
         push byte 0
         push byte 24
         jmp isr_common_stub
 
 _isr25:
-        cli
         push byte 0
         push byte 25
         jmp isr_common_stub
 
 _isr26:
-        cli
         push byte 0
         push byte 26
         jmp isr_common_stub
 
 _isr27:
-        cli
         push byte 0
         push byte 27
         jmp isr_common_stub
 
 _isr28:
-        cli
         push byte 0
         push byte 28
         jmp isr_common_stub
 
 _isr29:
-        cli
         push byte 0
         push byte 29
         jmp isr_common_stub
 
 _isr30:
-        cli
+        push byte 0
         push byte 30
         jmp isr_common_stub
 
 _isr31:
-        cli
         push byte 0
         push byte 31
         jmp isr_common_stub
@@ -256,8 +240,7 @@ isr_common_stub:
     mov gs, ax
     mov eax, esp   ; Push us the stack
     push eax
-    mov eax, _fault_handler
-    call eax       ; A special call, preserves the 'eip' register
+    call _fault_handler       ; A special call, preserves the 'eip' register
     pop eax
     pop gs
     pop fs

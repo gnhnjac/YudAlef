@@ -158,7 +158,7 @@ void print_at(const char *msg, int row, int col, int attr_byte)
 	while (*msg)
 	{
 
-		print_char(*msg++, row, col, attr_byte);
+		print_char(*msg++, -1, -1, attr_byte);
 	}
 }
 
@@ -289,7 +289,7 @@ int handle_scrolling(int cursor_offset)
 
 void display_logo()
 {
-
+	clear_screen();
 	char block = '#';
 	int attribute_byte = 0x3B; // Blinking Blue
 

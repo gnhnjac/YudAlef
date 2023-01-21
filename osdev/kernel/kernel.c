@@ -13,16 +13,11 @@ void entry()
 
 }
 
-extern void enter_v86(uint32_t ss, uint32_t esp, uint32_t cs, uint32_t eip);
-
 void kmain() {
 	idt_install();
-	//clear_screen();
-	//disable_cursor();
-	//display_logo();
-	//sleep(1000);
-	//int x = 1/0;
-	//for (;;);
+	disable_cursor();
+	display_logo();
+	for (;;);
 
 	// for (int i = 0; i < 1000; i++)
 	// {	
