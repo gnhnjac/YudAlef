@@ -1,1 +1,1 @@
-qemu-system-x86_64 -D logddd.txt -d int -fda os-image -gdb tcp:127.0.0.1:5555
+qemu-system-x86_64 -D logddd.txt -d int -fda os-image

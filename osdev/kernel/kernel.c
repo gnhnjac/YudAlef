@@ -2,7 +2,8 @@
 #include "idt.h"
 #include "irq.h"
 #include "timer.h"
-#include <stdint.h>
+#include "keyboard.h"
+#include "mouse.h"
 
 void kmain();
 
@@ -17,9 +18,11 @@ void kmain() {
 	idt_install();
 	irq_install();
 	timer_install();
-	disable_cursor();
 	display_logo();
-	for(;;);
+	clear_screen();
+	keyboard_install();
+	mouse_install();
+
 	// for (int i = 0; i < 1000; i++)
 	// {	
 

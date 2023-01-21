@@ -2,6 +2,7 @@
 #include "timer.h"
 #include "screen.h"
 #include "low_level.h"
+#include "mouse.h"
 
 void timer_phase(int hz)
 {
@@ -48,6 +49,6 @@ void wait_milliseconds(int milliseconds)
 
     timer_ticks = 0;
 
-    while (timer_ticks < milliseconds);
+    while (timer_ticks*10 < milliseconds);
 
 }

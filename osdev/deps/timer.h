@@ -1,4 +1,4 @@
-#define PHASE 1000
+#define PHASE 100
 //refs
 void timer_phase(int hz);
 void timer_handler(struct regs *r);

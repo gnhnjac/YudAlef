@@ -26,6 +26,35 @@ void print_char(const char character, int row, int col, char attribute_byte)
 	} else {
 		offset = get_cursor();
 	}
+
+	if (character == '\b')
+	{
+
+		// handle backspace
+		offset-=2;
+		if (offset < 0)
+		{
+
+			offset = 0;
+
+		}
+		*(vidmem+offset) = ' ';
+		*(vidmem+offset+1) = WHITE_ON_BLACK;
+		set_cursor(offset);
+		return;
+	}
+	else if (character == '\t')
+	{
+
+		// handle tab
+		putchar(' ');
+		putchar(' ');
+		putchar(' ');
+		putchar(' ');
+		return;
+
+	}
+
 	// If we see a newline character, set offset to the end of
 	// current row, so it will be advanced to the first col
 	// of the next row.
@@ -209,10 +238,16 @@ int printf(const char *fmt, ...)
 
 				case 's':
 					print((char *)va_arg(valist, int));
+					break;
 
 				case 'x':
 
 					num_to_str(va_arg(valist, int), buff, 16);
+					print(buff);
+					break;
+
+				case 'b':
+					num_to_str(va_arg(valist, int), buff, 2);
 					print(buff);
 					break;
 
@@ -251,7 +286,7 @@ void clear_screen()
 	for(int i = 0; i < MAX_COLS*MAX_ROWS*2; i += 2)
 	{
 		*(video_memory + i) = ' ';
-		//*(video_memory + 1) = 0x0f;
+		*(video_memory + i + 1) = WHITE_ON_BLACK;
 	}
 	//Move the cursor back to the top left .
 	set_cursor(get_screen_offset(0, 0));
@@ -288,7 +323,8 @@ int handle_scrolling(int cursor_offset)
 }
 
 void display_logo()
-{
+{	
+	disable_cursor();
 	clear_screen();
 	char block = '#';
 	int attribute_byte = 0x3B; // Blinking Blue
@@ -317,8 +353,10 @@ void display_logo()
 	char *msg = "Welcome to my operating system!";
 	set_cursor_coords(22, 40 - strlen(msg)/2 - 1);
 	print_color(msg, 0x3B);
-	timer_wait(2);
+	timer_wait(30);
 	blink_screen();
+	timer_wait(120);
+	enable_cursor(13, 50);
 	return;
 
 }
