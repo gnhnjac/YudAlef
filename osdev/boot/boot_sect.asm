@@ -60,7 +60,7 @@ BEGIN_PM:
 
 ; Global variables
 	rm_msg db '16-bit Real Mode running...',0xa, 0xd,0
-	load_kernel_msg db 'Loading kernel into memory at 0x1000', 0xa, 0xd, 0
+	load_kernel_msg db 'Loading kernel into memory at 0x10000', 0xa, 0xd, 0
 	pm_msg db 'Successfully switched to 32-bit protected mode!', 0
 	BOOT_DRIVE db 0
 
