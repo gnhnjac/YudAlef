@@ -26,10 +26,13 @@ load_kernel: ; note that dx is changed here!
 	mov dl, [BOOT_DRIVE]
 	xor dh, dh
 
-	push 0 ; es offset
-	push KERNEL_OFF ; bx offset
+	push KERNEL_OFF ; es offset
+	push 0 ; bx offset
 	push dx ; drive number
-	push 53 ; sectors to be read
+	push 70 ; sectors to be read
+	push 0 ; head
+	push 0 ; cyl
+	push 2 ; sec
 	call disk_load
 
 	ret
