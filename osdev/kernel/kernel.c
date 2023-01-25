@@ -18,7 +18,7 @@ void kmain() {
 	idt_install();
 	irq_install();
 	timer_install();
-	//display_logo();
+	display_logo();
 	clear_screen();
 	init_screen();
 	keyboard_install();

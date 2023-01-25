@@ -12,6 +12,7 @@ int8_t MOUSEY = 12;
 uint8_t color_attr = 3;
 int interval = 0;
 bool mouse_enabled = true;
+bool mouse_installed = false;
 
 placeholder mouset_buffer = {' ',0x0f};
 placeholder mouseb_buffer = {' ',0x0f};
@@ -42,6 +43,8 @@ void mouse_wait(uint8_t type)
 
 void disable_mouse()
 {	
+	if (!mouse_installed)
+		return;
 	mouse_enabled = false;
 	int prev_cursor = get_cursor();
 	print_char(mouset_buffer.ascii,MOUSEY,MOUSEX,mouset_buffer.attr);
@@ -55,6 +58,8 @@ void disable_mouse()
 
 void enable_mouse()
 {
+	if (!mouse_installed)
+		return;
 	mouse_enabled = true;
 	int prev_cursor = get_cursor();
 	print_char(' ',MOUSEY,MOUSEX,0x40);
@@ -250,4 +255,6 @@ void mouse_install()
 	mouseb_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 80)*2 + 1);
 	mouser_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2);
 	mouser_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2 + 1);
+
+	mouse_installed = true;
 }

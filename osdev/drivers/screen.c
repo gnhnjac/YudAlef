@@ -308,6 +308,7 @@ int handle_scrolling(int cursor_offset)
 		return cursor_offset;
 	}
 	hide_scroll_bar();
+	disable_mouse();
 	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
 	push_to_buffer((char **)top_buffer, first_line, BUFFER_TOP_ROWS);
 
@@ -317,6 +318,7 @@ int handle_scrolling(int cursor_offset)
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
+	disable_mouse();
 
 	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
 
@@ -326,6 +328,8 @@ int handle_scrolling(int cursor_offset)
 		*(last_line + i) = 0;
 
 	}
+
+	enable_mouse();
 
 	cursor_offset -= 2*MAX_COLS;
 
@@ -340,6 +344,7 @@ int handle_scrolling(int cursor_offset)
 void display_logo()
 {	
 	disable_cursor();
+	disable_mouse();
 	clear_screen();
 	char block = '#';
 	int attribute_byte = 0x3B; // Blinking Blue
@@ -360,8 +365,8 @@ void display_logo()
 				print_char(' ', i, j, attribute_byte);
 
 			}
-
-			wait_milliseconds(1);
+			if (j%5==0)
+				wait_milliseconds(1);
 		}
 
 	}
@@ -372,6 +377,7 @@ void display_logo()
 	blink_screen();
 	timer_wait(2);
 	enable_cursor(13, 50);
+	enable_mouse();
 	return;
 
 }
@@ -473,6 +479,7 @@ void scroll_up()
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i+1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
+	disable_mouse();
 
 	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
 
@@ -500,6 +507,7 @@ void scroll_down()
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
+	disable_mouse();
 
 	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
 	pop_from_buffer(bot_buffer, last_line, BUFFER_BOT_ROWS);
