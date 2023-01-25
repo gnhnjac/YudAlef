@@ -6,8 +6,15 @@
 #include "strings.h"
 #include "mouse.h"
 #include "timer.h"
+#include "math.h"
 
 char logo_pixels[];
+
+char top_buffer[BUFFER_TOP_ROWS][2*MAX_COLS];
+
+char bot_buffer[BUFFER_BOT_ROWS][2*MAX_COLS];
+
+int scroll_index = 0;
 
 /* Print a char on the screen at col, row, or at cursor position */
 void print_char(const char character, int row, int col, char attribute_byte) 
@@ -290,7 +297,7 @@ void clear_screen()
 		*(video_memory + i + 1) = WHITE_ON_BLACK;
 	}
 	//Move the cursor back to the top left .
-	set_cursor(get_screen_offset(0, 0));
+	set_cursor(get_screen_offset(TOP,0));
 }
 
 int handle_scrolling(int cursor_offset)
@@ -300,8 +307,11 @@ int handle_scrolling(int cursor_offset)
 	{
 		return cursor_offset;
 	}
+	hide_scroll_bar();
+	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
+	push_to_buffer((char **)top_buffer, first_line, BUFFER_TOP_ROWS);
 
-	for (int i = 1; i < MAX_ROWS; i++)
+	for (int i = TOP+1; i < MAX_ROWS; i++)
 	{
 
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
@@ -318,6 +328,10 @@ int handle_scrolling(int cursor_offset)
 	}
 
 	cursor_offset -= 2*MAX_COLS;
+
+	if (scroll_index != BUFFER_TOP_ROWS)
+		scroll_index++;
+	draw_scroll_bar();
 
 	return cursor_offset;
 
@@ -362,33 +376,125 @@ void display_logo()
 
 }
 
-void scroll_up()
+void clear_line(char *line)
 {
 
+	for (int i = 0; i < MAX_COLS; i++)
+	{
+
+		line[i*2] = ' ';
+		line[i*2 + 1] = WHITE_ON_BLACK;
+
+	}
+
+}
+
+void init_screen()
+{
+	// initialize scroll buffers
+	for (int i = 0; i < BUFFER_TOP_ROWS; i++)
+	{
+		clear_line(top_buffer[i]);
+	}
+
+	for (int i = 0; i < BUFFER_BOT_ROWS; i++)
+	{
+		clear_line(bot_buffer[i]);
+	}
+
+	// initialize top bar
+
+	for (int i = 0; i < MAX_COLS; i++)
+	{
+
+		print_char(' ', TOP-1, i, 0x70);
+
+	}
+
+	// Initialize stats
+
+	print_at("CTRL SHIFT ALT CAPS", 0, 0, WHITE_ON_BLACK);
+
+	set_cursor(get_screen_offset(TOP,0));
+
+}
+
+void switch_top_bar_value(int offset, int len)
+{
+	char *video_memory = (char *)VIDEO_ADDRESS;
+	for(int i = offset; i<offset+len;i++)
+	{
+
+		*(video_memory+i*2+1) ^= 0b1011; // when 0x0f yields 0x04 and when 0x04 yields 0x0f
+
+	}
+
+}
+
+void push_to_buffer(char buffer[][2*MAX_COLS], char *line, int buffer_rows)
+{
+
+	for (int i = buffer_rows-2; i >= 0; i--)
+	{
+
+		memcpy(buffer[i+1], buffer[i],2*MAX_COLS);
+
+	}
+	memcpy(buffer[0],line, 2*MAX_COLS);
+
+}
+
+void pop_from_buffer(char buffer[][2*MAX_COLS],char *dst_buffer, int buffer_rows)
+{
+	memcpy(dst_buffer,buffer[0],2*MAX_COLS);
+	for (int i = 1; i < buffer_rows; i++)
+	{
+
+		memcpy(buffer[i-1], buffer[i],2*MAX_COLS);
+
+	}
+
+	clear_line(buffer[buffer_rows-1]); // clear last buffer line
+
+}
+
+void scroll_up()
+{
+	hide_scroll_bar();
+	if (scroll_index == 0)
+		return;
+	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
+	push_to_buffer(bot_buffer, last_line, BUFFER_BOT_ROWS);
+
 	disable_mouse();
-	for (int i =  MAX_ROWS-1; i >= 0; i++)
+	for (int i =  MAX_ROWS-2; i >= TOP; i--)
 	{
 
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i+1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
 
-	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(0, 0));
+	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
 
-	for (int i = 0; i < MAX_COLS*2; i++)
-	{
+	pop_from_buffer(top_buffer, first_line, BUFFER_TOP_ROWS);
 
-		*(first_line + i) = 0;
-
-	}
 	enable_mouse();
+
+	scroll_index--;
 
 }
 
 void scroll_down()
 {
+	hide_scroll_bar();
+	if (scroll_index == BUFFER_TOP_ROWS)
+		return;
 	disable_mouse();
-	for (int i = 1; i < MAX_ROWS; i++)
+
+	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
+	push_to_buffer(top_buffer, first_line, BUFFER_TOP_ROWS);
+
+	for (int i = TOP+1; i < MAX_ROWS; i++)
 	{
 
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
@@ -396,14 +502,57 @@ void scroll_down()
 	}
 
 	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
+	pop_from_buffer(bot_buffer, last_line, BUFFER_BOT_ROWS);
 
-	for (int i = 0; i < MAX_COLS*2; i++)
+	enable_mouse();
+
+	scroll_index++;
+
+}
+
+void draw_scroll_bar()
+{
+	int prev_cursor = get_cursor();
+	for (int i = TOP; i < MAX_ROWS; i++)
 	{
 
-		*(last_line + i) = 0;
+		print_char(' ', i, 79, WHITE_ON_BLACK);
+		print_char(' ', i, 78, 0x70);
 
 	}
-	enable_mouse();
+
+	int row = remap(scroll_index, 0, BUFFER_TOP_ROWS, TOP, MAX_ROWS-1); 
+	int col = 79;
+	print_char(' ', row, col, 0x70);
+	set_cursor(prev_cursor);
+
+}
+
+void hide_scroll_bar()
+{
+
+	for (int i = TOP; i < MAX_ROWS; i++)
+	{
+
+		print_char(' ', i, 79, WHITE_ON_BLACK);
+		print_char(' ', i, 78, WHITE_ON_BLACK);
+
+	}
+
+}
+
+void set_scroll_pos(int pos_index)
+{
+
+	int target_scroll_index = remap(pos_index, TOP, MAX_ROWS-1, 0, BUFFER_TOP_ROWS);
+
+	while(target_scroll_index > scroll_index)
+		scroll_down();
+	while(target_scroll_index < scroll_index)
+		scroll_up();
+
+	draw_scroll_bar();
+	
 }
 
 char logo_pixels[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};

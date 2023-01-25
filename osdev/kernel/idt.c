@@ -13,8 +13,15 @@ typedef struct {
     uint16_t    isr_high;     // The higher 16 bits of the ISR's address
 } __attribute__((packed)) idt_entry_t;
 
+typedef struct {
+    uint16_t    limit;
+    uint16_t    base_low;
+    uint16_t    base_high;
+} __attribute__((packed)) idtr_t;
+
 __attribute__((aligned(0x10))) 
 idt_entry_t idt[IDT_MAX_DESCRIPTORS]; // Create an array of IDT entries; aligned for performance
+idtr_t idtr;
 
 void idt_set_gate(uint8_t vector, void* isr, uint8_t flags) {
     idt_entry_t* descriptor = &idt[vector];
@@ -32,11 +39,14 @@ void idt_install(void);
 /* Installs the IDT */
 void idt_install()
 {
-
+    idtr.base_low = (uint32_t)&idt & 0xFFFF;
+    idtr.base_high = (uint32_t)&idt >> 16;
+    idtr.limit = (uint16_t)sizeof(idt_entry_t) * IDT_MAX_DESCRIPTORS - 1;
     /* Clear out the entire IDT, initializing it to zeros */
     memset((unsigned char *)&idt, 0, sizeof(idt_entry_t) * IDT_MAX_DESCRIPTORS);
 
     /* Add any new ISRs to the IDT here using idt_set_gate */
     isrs_install();
     idt_load();
+
 }

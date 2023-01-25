@@ -5,17 +5,11 @@ extern _entry
 call _entry ; invoke main () in our C kernel
 jmp $ ; Hang forever when we return from the kernel
 
-extern _idt
-
-idtp:
-    dw 0x7FF ; (256*8)
-    dw _idt
-    dw 0
-
 global _idt_load
+extern _idtr
 
 _idt_load:
-    lidt [idtp]
+    lidt [_idtr]
     ret
 
 ; EXCEPTION IDT GATES

@@ -23,7 +23,7 @@ pre-build:
 # which is the combination of our compiled bootsector and kernel
 os-image: boot/boot_sect.bin kernel.bin
 	@copy /b boot\boot_sect.bin+kernel.bin os-image > nul
-# @python check_size_validity.py
+	@python check_size_validity.py
 
 # Link kernel object files into one binary, making sure the
 # entry code is right at the start of the binary.

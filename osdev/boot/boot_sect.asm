@@ -1,8 +1,6 @@
 org 0x7c00
 bits 16
 
-KERNEL_OFF equ 0x1000
-
 BEGIN_RM:
 
 	mov [BOOT_DRIVE], dl ; mbr drive number saved in dl
@@ -26,7 +24,7 @@ load_kernel: ; note that dx is changed here!
 	mov dl, [BOOT_DRIVE]
 	xor dh, dh
 
-	push KERNEL_OFF ; es offset
+	push 0x1000 ; es offset
 	push 0 ; bx offset
 	push dx ; drive number
 	push 70 ; sectors to be read
@@ -44,7 +42,7 @@ BEGIN_PM:
 	push pm_msg
 	call print_str_mem32
 
-	call KERNEL_OFF ; jmp into kernel code
+	call 0x10000 ; jmp into kernel code
 
 	jmp $
 

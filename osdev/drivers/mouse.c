@@ -9,8 +9,8 @@ uint8_t PREVX = 40;
 uint8_t PREVY = 12;
 int8_t MOUSEX = 40;
 int8_t MOUSEY = 12;
-uint8_t interval = 0;
 uint8_t color_attr = 3;
+int interval = 0;
 bool mouse_enabled = true;
 
 placeholder mouset_buffer = {' ',0x0f};
@@ -42,25 +42,31 @@ void mouse_wait(uint8_t type)
 
 void disable_mouse()
 {	
-	char *video_memory = (char *)VIDEO_ADDRESS;
 	mouse_enabled = false;
+	int prev_cursor = get_cursor();
 	print_char(mouset_buffer.ascii,MOUSEY,MOUSEX,mouset_buffer.attr);
+	if (MOUSEY < 24)
 		print_char(mouseb_buffer.ascii,MOUSEY+1,MOUSEX,mouseb_buffer.attr);
+	if (MOUSEX < 79)
 		print_char(mouser_buffer.ascii,MOUSEY,MOUSEX+1,mouser_buffer.attr);
+	set_cursor(prev_cursor);
 
 }
 
 void enable_mouse()
 {
 	mouse_enabled = true;
-	print_char(' ',MOUSEY,MOUSEX,0x70);
-	print_char(' ',MOUSEY+1,MOUSEX,0x70);
-	print_char(' ',MOUSEY,MOUSEX+1,0x70);
+	int prev_cursor = get_cursor();
+	print_char(' ',MOUSEY,MOUSEX,0x40);
+	if (MOUSEY < 24)
+		print_char(' ',MOUSEY+1,MOUSEX,0x40);
+	if (MOUSEX < 79)
+		print_char(' ',MOUSEY,MOUSEX+1,0x40);
+	set_cursor(prev_cursor);
 }
 
 void mouse_handler(struct regs *r)
 {
-
 	mouse_wait(0);
 	uint8_t flags = inb(PS_DATA);
 	mouse_wait(0);
@@ -69,50 +75,34 @@ void mouse_handler(struct regs *r)
 	uint8_t ymov = inb(PS_DATA);
 	mouse_wait(0);
 	uint8_t zmov = inb(PS_DATA);
-
 	if (!mouse_enabled)
 		return;
 
-	int left_click = flags & 1;
-	int right_click = flags & 2;
-	int middle_click = flags & 4;
-
-	if (left_click)
-		set_cursor_coords(MOUSEY, MOUSEX);
-		color_attr += 1;
-		color_attr = color_attr % 8;
-	if (right_click)
-	{
-		int prev_cursor = get_cursor();
-		print_char(' ',MOUSEY-1,MOUSEX-1,color_attr << 4);
-		set_cursor(prev_cursor);
-	}
-
-	if (interval%5 == 0)
+	if (interval % 5 == 0)
 	{
 		int8_t rel_x = xmov - ((flags << 4) & 0x100); // produce 2s complement only if the neg bit is set
 		int8_t rel_y = ymov - ((flags << 3) & 0x100); // produce 2s complement only if the neg bit is set
-		int8_t scroll = zmov & 0xF;
-
 		// handle mouse mvmt
 
 		MOUSEX += rel_x;
 
 		if (MOUSEX < 0)
 			MOUSEX = 0;
-		else if (MOUSEX > 78)
-			MOUSEX = 78;
+		else if (MOUSEX > 79)
+			MOUSEX = 79;
 
 		MOUSEY -= rel_y;
 
-		if (MOUSEY < 0)
-			MOUSEY = 0;
-		else if (MOUSEY > 23)
-			MOUSEY = 23;
+		if (MOUSEY < 2)
+			MOUSEY = 2;
+		else if (MOUSEY > 24)
+			MOUSEY = 24;
 		int prev_cursor = get_cursor();
 		print_char(mouset_buffer.ascii,PREVY,PREVX,mouset_buffer.attr);
-		print_char(mouseb_buffer.ascii,PREVY+1,PREVX,mouseb_buffer.attr);
-		print_char(mouser_buffer.ascii,PREVY,PREVX+1,mouser_buffer.attr);
+		if (PREVY < 24)
+			print_char(mouseb_buffer.ascii,PREVY+1,PREVX,mouseb_buffer.attr);
+		if (PREVX < 79)
+			print_char(mouser_buffer.ascii,PREVY,PREVX+1,mouser_buffer.attr);
 
 		PREVX = MOUSEX;
 		PREVY = MOUSEY;
@@ -127,24 +117,51 @@ void mouse_handler(struct regs *r)
 		mouser_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2 + 1);
 		
 
-		print_char(' ',MOUSEY,MOUSEX,0x70);
-		print_char(' ',MOUSEY+1,MOUSEX,0x70);
-		print_char(' ',MOUSEY,MOUSEX+1,0x70);
+		print_char(' ',MOUSEY,MOUSEX,0x40);
+		if (MOUSEY < 24)
+			print_char(' ',MOUSEY+1,MOUSEX,0x40);
+		if (MOUSEX < 79)
+			print_char(' ',MOUSEY,MOUSEX+1,0x40);
 		set_cursor(prev_cursor);
-
-		// handle scrolling
-
-		if (scroll == VERTICAL_SCROLL_UP)
-		{
-			print("Scroll down\n");
-			scroll_down();
-		}
-		else if (scroll == VERTICAL_SCROLL_DOWN)
-			print("Scroll up\n");
-			scroll_up();
-
 	}
+
 	interval++;
+
+	// handle scrolling
+	int8_t scroll = zmov & 0xF;
+	if (scroll == VERTICAL_SCROLL_UP)
+	{
+		scroll_down();
+		draw_scroll_bar();
+	}
+	else if (scroll == VERTICAL_SCROLL_DOWN)
+	{
+		scroll_up();
+		draw_scroll_bar();
+	}
+
+	int left_click = flags & 1;
+	int right_click = flags & 2;
+
+	if (left_click)
+	{
+		if (MOUSEX == 79) // if on scroll bar
+		{
+			set_scroll_pos(MOUSEY);
+		}
+		else
+		{
+			set_cursor_coords(MOUSEY, MOUSEX);
+		}
+	}
+	if (right_click)
+	{
+		int prev_cursor = get_cursor();
+		print_char(' ',MOUSEY-1,MOUSEX-1,color_attr << 4);
+		set_cursor(prev_cursor);
+		color_attr += 1;
+		color_attr = color_attr % 8;
+	}
 
 }
 
@@ -223,4 +240,14 @@ void mouse_install()
 	__asm__ __volatile__ ("sti");
 
 	irq_install_handler(12, mouse_handler);
+
+	// save strings at future mouse init position
+	char *video_memory = (char *)VIDEO_ADDRESS;
+
+	mouset_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX)*2);
+	mouset_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX)*2 + 1);
+	mouseb_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX + 80)*2);
+	mouseb_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 80)*2 + 1);
+	mouser_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2);
+	mouser_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2 + 1);
 }

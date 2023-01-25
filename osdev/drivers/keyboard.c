@@ -11,13 +11,14 @@ void enable_shift()
 {
 
   kstatus |= 0b00000100;
-
+  switch_top_bar_value(SHIFT_OFF,5);
 }
 
 void disable_shift()
 {
 
   kstatus &= ~0b00000100;
+  switch_top_bar_value(SHIFT_OFF,5);
 
 }
 
@@ -32,6 +33,7 @@ void enable_ctrl()
 {
 
   kstatus |= 0b00000001;
+  switch_top_bar_value(CTRL_OFF,4);
 
 }
 
@@ -39,6 +41,7 @@ void disable_ctrl()
 {
 
   kstatus &= ~0b00000001;
+  switch_top_bar_value(CTRL_OFF,4);
 
 }
 
@@ -53,6 +56,7 @@ void enable_caps()
 {
 
   kstatus |= 0b00001000;
+  switch_top_bar_value(CAPS_OFF,4);
 
 }
 
@@ -60,6 +64,7 @@ void disable_caps()
 {
 
   kstatus &= ~0b00001000;
+  switch_top_bar_value(CAPS_OFF,4);
 
 }
 
@@ -74,6 +79,7 @@ void enable_alt()
 {
 
   kstatus |= 0b00000010;
+  switch_top_bar_value(ALT_OFF,3);
 
 }
 
@@ -81,6 +87,7 @@ void disable_alt()
 {
 
   kstatus &= ~0b00000010;
+  switch_top_bar_value(ALT_OFF,3);
 
 }
 

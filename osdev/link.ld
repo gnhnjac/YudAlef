@@ -2,6 +2,7 @@ _KERNEL_BASE_ = 0x10000;
 ENTRY(_KERNEL_BASE_)
 SECTIONS
 {
+  . = _KERNEL_BASE_;
   .text.start (_KERNEL_BASE_) : {
     kernel/kernel_entry.o( .text )
   }

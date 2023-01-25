@@ -10,6 +10,18 @@
 // Screen device I/O ports
 #define REG_SCREEN_CTRL 0x3D4 // Internal register index
 #define REG_SCREEN_DATA 0x3D5 // Internal register data
+
+// scroll buffer values
+#define BUFFER_TOP_ROWS 0x20
+#define BUFFER_BOT_ROWS 0x20
+
+// top bar constants
+#define TOP 2
+#define CTRL_OFF 0
+#define SHIFT_OFF 5
+#define ALT_OFF 11
+#define CAPS_OFF 15
+
 //refs
 void print_char(const char character, int row, int col, char attribute_byte);
 void blink_screen();
@@ -28,5 +40,13 @@ int printf(const char *fmt, ...);
 void clear_screen();
 int handle_scrolling(int cursor_offset);
 void display_logo();
+void clear_line(char *line);
+void init_screen();
+void switch_top_bar_value(int offset, int len);
+void push_to_buffer(char buffer[][2*MAX_COLS], char *line, int buffer_rows);
+void pop_from_buffer(char buffer[][2*MAX_COLS],char *dst_buffer, int buffer_rows);
 void scroll_up();
 void scroll_down();
+void draw_scroll_bar();
+void hide_scroll_bar();
+void set_scroll_pos(int pos_index);
