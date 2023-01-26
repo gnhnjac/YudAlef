@@ -17,6 +17,12 @@
 #define CAPS_PRESS 58
 #define CAPS_REL 186
 
+#define PS_DATA 0x60
+#define PS_CTRL 0x64
+
+#define DOWN_ARROW_PRESS 80
+#define UP_ARROW_PRESS 72
+
 //refs
 void enable_shift();
 void disable_shift();

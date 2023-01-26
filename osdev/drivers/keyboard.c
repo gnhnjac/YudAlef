@@ -14,6 +14,7 @@ static bool taking_input = false;
 static char input_buffer[INPUT_BUFFER_SIZE];
 static int buffer_index = 0;
 static int buffer_limit = 0;
+static int orig_scroll_index = 0;
 
 void enable_shift()
 {
@@ -190,12 +191,11 @@ unsigned char kbdus_shift[128] =
 /* Handles the keyboard interrupt */
 void keyboard_handler(struct regs *r)
 {
-    outb(0x20, 0x20);
+
     unsigned char scancode;
 
     /* Read from the keyboard's data buffer */
-    scancode = inb(0x60);
-
+    scancode = inb(PS_DATA);
     /* If the top bit of the byte we read from the keyboard is
     *  set, that means that a key has just been released */
     if (scancode & 0x80)
@@ -258,6 +258,20 @@ void keyboard_handler(struct regs *r)
         else if (scancode == CAPS_PRESS) // caps
         {
           return;
+        }
+        else if (scancode == DOWN_ARROW_PRESS)
+        {
+
+          scroll_down();
+          return;
+
+        }
+        else if (scancode == UP_ARROW_PRESS)
+        {
+
+          scroll_up();
+          return;
+
         }
 
         handle_character(scancode);
@@ -328,6 +342,8 @@ void keyboard_input(int row, int col, int bf_limit)
   else
     buffer_limit = bf_limit;
 
+  orig_scroll_index = get_scroll_index();
+
 
 }
 
@@ -348,6 +364,7 @@ bool is_taking_input()
 // returns -1 if reached limit (start/end) and must be supplied with \n, zero if continuing and 1 if finished successfully.
 static int keyboard_input_character(char character)
 {
+  set_scroll_pos(orig_scroll_index);
   set_cursor(get_screen_offset(input_row, input_col));
 
   if (character == '\b') // handle backspace

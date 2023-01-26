@@ -35,7 +35,7 @@ kernel.bin: kernel/kernel_entry.o ${OBJ}
 
 # Generic rule for building ’somefile.o’ from ’somefile.c’
 %.o: %.c ${HEADERS}
-	@gcc -m32 -ffreestanding -c $< -I ./deps -o $@
+	@gcc -m32 -ffreestanding -c $< -I ./deps -o $@ -D BOCHS
 
 # Build our kernel entry object file.
 #$< is the first dependancy and $@ is the target file

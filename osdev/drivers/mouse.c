@@ -5,18 +5,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-uint8_t PREVX = 40;
-uint8_t PREVY = 12;
-int8_t MOUSEX = 40;
-int8_t MOUSEY = 12;
-uint8_t color_attr = 3;
-int interval = 0;
-bool mouse_enabled = true;
-bool mouse_installed = false;
+static uint8_t PREVX = 40;
+static uint8_t PREVY = 12;
+static int8_t MOUSEX = 40;
+static int8_t MOUSEY = 12;
+static uint8_t color_attr = 3;
+static int interval = 0;
+static bool mouse_enabled = true;
+static bool mouse_installed = false;
 
-placeholder mouset_buffer = {' ',0x0f};
-placeholder mouseb_buffer = {' ',0x0f};
-placeholder mouser_buffer = {' ',0x0f};
+static placeholder mouset_buffer = {' ',0x0f};
+static placeholder mouseb_buffer = {' ',0x0f};
+static placeholder mouser_buffer = {' ',0x0f};
 
 void mouse_wait(uint8_t type)
 {
@@ -163,7 +163,7 @@ void mouse_handler(struct regs *r)
 	{
 		if (MOUSEX == 79) // if on scroll bar
 		{
-			set_scroll_pos(MOUSEY);
+			set_scroll_pos_mouse(MOUSEY);
 		}
 		else
 		{

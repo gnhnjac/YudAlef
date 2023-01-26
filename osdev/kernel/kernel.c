@@ -4,7 +4,7 @@
 #include "timer.h"
 #include "keyboard.h"
 #include "mouse.h"
-#include "terminal.h"
+#include "shell.h"
 
 void kmain();
 
@@ -22,8 +22,10 @@ void kmain() {
 	//display_logo();
 	init_screen();
 	keyboard_install();
-	mouse_install();
-	term_main(); // start terminal
+	#ifdef BOCHS
+		mouse_install(); // mouse has issues in qemu.
+	#endif
+	shell_main(); // start terminal
 	// for (int i = 0; i < 80; i++)
 	// {	
 

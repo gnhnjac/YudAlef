@@ -12,8 +12,8 @@
 #define REG_SCREEN_DATA 0x3D5 // Internal register data
 
 // scroll buffer values
-#define BUFFER_TOP_ROWS 0x20
-#define BUFFER_BOT_ROWS 0x20
+#define BUFFER_TOP_ROWS 0xFF
+#define BUFFER_BOT_ROWS 0xFF
 
 // top bar constants
 #define TOP 2
@@ -52,4 +52,6 @@ void scroll_up();
 void scroll_down();
 void draw_scroll_bar();
 void hide_scroll_bar();
-void set_scroll_pos(int pos_index);
+void set_scroll_pos_mouse(int pos_index);
+void set_scroll_pos(int target_scroll_index);
+int get_scroll_index();
