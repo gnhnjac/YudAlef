@@ -2,10 +2,18 @@
 #include "keyboard.h"
 #include "low_level.h"
 #include "screen.h"
+#include "math.h"
+#include "memory.h"
 
 // status byte for keyboard
 // [n,n,n,n,caps,shift,alt,ctrl]
-unsigned char kstatus = 0;
+static unsigned char kstatus = 0;
+static uint8_t input_row = 0;
+static uint8_t input_col = 0;
+static bool taking_input = false;
+static char input_buffer[INPUT_BUFFER_SIZE];
+static int buffer_index = 0;
+static int buffer_limit = 0;
 
 void enable_shift()
 {
@@ -195,25 +203,25 @@ void keyboard_handler(struct regs *r)
         /* You can use this one to see if the user released the
         *  shift, alt, or control keys... */
 
-      if (scancode == 170 || scancode == 182) // shift
+      if (scancode == LSHIFT_REL || scancode == RSHIFT_REL) // shift
       {
 
         disable_shift();
 
       }
-      else if (scancode == 157) // ctrl
+      else if (scancode == CTRL_REL) // ctrl
       {
 
         disable_ctrl();
 
       }
-      else if (scancode == 184) // alt
+      else if (scancode == ALT_REL) // alt
       {
 
         disable_alt();
 
       }
-      else if (scancode == 186) // caps
+      else if (scancode == CAPS_REL) // caps
       {
 
         if(check_caps())
@@ -226,58 +234,148 @@ void keyboard_handler(struct regs *r)
     }
     else
     {
-        if (scancode == 42 || scancode == 54) // shift
+        if (scancode == LSHIFT_PRESS || scancode == RSHIFT_PRESS) // shift
         {
 
           enable_shift();
           return;
 
         }
-        else if (scancode == 29) // ctrl
+        else if (scancode == CTRL_PRESS) // ctrl
         {
 
           enable_ctrl();
           return;
 
         }
-        else if (scancode == 56) // alt
+        else if (scancode == ALT_PRESS) // alt
         {
 
           enable_alt();
           return;
 
         }
-        else if (scancode == 58) // caps
+        else if (scancode == CAPS_PRESS) // caps
         {
           return;
         }
 
-        /* Here, a key was just pressed. Please note that if you
-        *  hold a key down, you will get repeated key press
-        *  interrupts. */
-
-        /* Just to show you how this works, we simply translate
-        *  the keyboard scancode into an ASCII value, and then
-        *  display it to the screen. You can get creative and
-        *  use some flags to see if a shift is pressed and use a
-        *  different layout, or you can add another 128 entries
-        *  to the above layout to correspond to 'shift' being
-        *  held. If shift is held using the larger lookup table,
-        *  you would add 128 to the scancode when you look for it */
-        if (check_shift())
-        {
-          putchar(kbdus_shift[scancode]);
-        }
-        else
-        {
-
-          char ascii = kbdus[scancode];
-          if (check_caps() && 'a' <= ascii && 'z' >= ascii)
-            ascii -= 'a'-'A';
-
-          putchar(ascii);
-        }
+        handle_character(scancode);
     }
+}
+
+static void handle_character(unsigned char scancode)
+{
+
+  int character_status = 0; // 0 = print
+
+  if (check_shift())
+  {
+    if (taking_input)
+      character_status = keyboard_input_character(kbdus_shift[scancode]);
+    if (character_status != -1)
+      putchar(kbdus_shift[scancode]);
+  }
+  else
+  {
+
+    char ascii = kbdus[scancode];
+    if (check_caps() && 'a' <= ascii && 'z' >= ascii)
+      ascii -= 'a'-'A';
+    if (taking_input)
+      character_status = keyboard_input_character(ascii);
+    if (character_status != -1)
+      putchar(ascii);
+  }
+
+  if (taking_input)
+  {
+    input_row = get_cursor_row();
+    input_col = get_cursor_col();
+  }
+
+}
+
+// row = the row you want to use, col = the col you want to use, bf_limit = how many characters, including \n should you take from the user.
+// if row<0 then row=cursor row, if col<0 then col=cursor col, if bf_limit<=0 then default limit.
+void keyboard_input(int row, int col, int bf_limit)
+{
+
+  taking_input = true;
+
+  if(row < 0)
+    row = get_cursor_row();
+  if(col < 0)
+    col = get_cursor_col();
+
+  if (row < 2)
+    row = 2;
+  else if (row > 24)
+    row = 24;
+
+  if (col < 0)
+    col = 0;
+  else if (col > 79)
+    col = 79;
+
+  input_row = row;
+  input_col = col;
+  set_cursor(get_screen_offset(input_row, input_col));
+  buffer_index = 0;
+
+  if (bf_limit <= 0)
+    buffer_limit = INPUT_BUFFER_SIZE;
+  else
+    buffer_limit = bf_limit;
+
+
+}
+
+void load_input_to_buffer(char *buffer)
+{
+
+  memcpy(buffer,input_buffer,buffer_limit);
+
+}
+
+bool is_taking_input()
+{
+
+  return taking_input;
+
+}
+
+// returns -1 if reached limit (start/end) and must be supplied with \n, zero if continuing and 1 if finished successfully.
+static int keyboard_input_character(char character)
+{
+  set_cursor(get_screen_offset(input_row, input_col));
+
+  if (character == '\b') // handle backspace
+  {
+
+    if (buffer_index == 0)
+      return -1;
+
+    buffer_index--;
+    return 0;
+
+  }
+
+  else if (character == '\n') // handle newline (submit string)
+  {
+    input_buffer[buffer_index] = 0; // end of string
+    taking_input = false;
+    return 1;
+  }
+
+  if (buffer_index == min(INPUT_BUFFER_SIZE-1,buffer_limit-1)) // only if character is \n let it pass and finish taking the input
+    return -1;
+
+  input_buffer[buffer_index] = character;
+  buffer_index++;
+
+  return 0;
+
 }
 
 void keyboard_install()

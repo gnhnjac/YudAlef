@@ -56,11 +56,24 @@ void disable_mouse()
 
 }
 
+void save_to_mouse_buffer()
+{
+	char *video_memory = (char *)VIDEO_ADDRESS;
+	mouset_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX)*2);
+	mouset_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX)*2 + 1);
+	mouseb_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX + 80)*2);
+	mouseb_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 80)*2 + 1);
+	mouser_buffer.ascii = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2);
+	mouser_buffer.attr = *(video_memory + (MOUSEY*80 + MOUSEX + 1)*2 + 1);
+
+}
+
 void enable_mouse()
 {
 	if (!mouse_installed)
 		return;
 	mouse_enabled = true;
+	save_to_mouse_buffer();
 	int prev_cursor = get_cursor();
 	print_char(' ',MOUSEY,MOUSEX,0x40);
 	if (MOUSEY < 24)
@@ -80,7 +93,7 @@ void mouse_handler(struct regs *r)
 	uint8_t ymov = inb(PS_DATA);
 	mouse_wait(0);
 	uint8_t zmov = inb(PS_DATA);
-	if (!mouse_enabled)
+	if (!mouse_enabled || !mouse_installed)
 		return;
 
 	if (interval % 5 == 0)
@@ -137,12 +150,10 @@ void mouse_handler(struct regs *r)
 	if (scroll == VERTICAL_SCROLL_UP)
 	{
 		scroll_down();
-		draw_scroll_bar();
 	}
 	else if (scroll == VERTICAL_SCROLL_DOWN)
 	{
 		scroll_up();
-		draw_scroll_bar();
 	}
 
 	int left_click = flags & 1;

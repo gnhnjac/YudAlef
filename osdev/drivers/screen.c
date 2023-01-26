@@ -40,10 +40,10 @@ void print_char(const char character, int row, int col, char attribute_byte)
 
 		// handle backspace
 		offset-=2;
-		if (offset < 0)
+		if (offset < get_screen_offset(TOP, 0)) // can't be lower than start of screen.
 		{
 
-			offset = 0;
+			offset = get_screen_offset(TOP, 0);
 
 		}
 		*(vidmem+offset) = ' ';
@@ -63,10 +63,13 @@ void print_char(const char character, int row, int col, char attribute_byte)
 
 	}
 
+	// Make scrolling adjustment, for when we reach the bottom
+	// of the screen.
+	offset = handle_scrolling(offset);
+
 	// If we see a newline character, set offset to the end of
 	// current row, so it will be advanced to the first col
 	// of the next row.
-	offset = handle_scrolling(offset);
 	if (character == '\n') {
 
 		int current_row = offset / (2 * MAX_COLS);
@@ -80,8 +83,13 @@ void print_char(const char character, int row, int col, char attribute_byte)
 	// Update the offset to the next character cell , which is
 	// two bytes ahead of the current cell .
 	offset += 2;
-	// Make scrolling adjustment, for when we reach the bottom
-	// of the screen.
+
+	// if it reached the scroll bar set it to the end of the line so the next character will be in the new line.
+	if (((offset/2)%MAX_COLS) >= 78)
+	{
+		int current_row = offset / (2 * MAX_COLS);
+		offset = get_screen_offset(current_row+1, 0);
+	}
 	// Update the cursor position on the screen device.
 	set_cursor(offset);
 }
@@ -122,6 +130,20 @@ int get_screen_offset(int row, int col)
 {
 
 	return 2*(row * MAX_COLS + col);
+
+}
+
+int get_cursor_row()
+{
+
+	return (get_cursor()/2)/MAX_COLS;
+
+}
+
+int get_cursor_col()
+{
+
+	return (get_cursor()/2)%MAX_COLS;
 
 }
 
@@ -286,12 +308,31 @@ int printf(const char *fmt, ...)
 
 }
 
+// clear screen without gui elements
+void clear_viewport() 
+{
+
+	char *video_memory = (char *)VIDEO_ADDRESS;
+
+	for(int i = TOP; i < MAX_ROWS; i += 1)
+	{
+		for (int j = 0; j < 78; j++)
+		{
+			*(video_memory + i*2*MAX_COLS + j*2) = ' ';
+			*(video_memory + i*2*MAX_COLS + j*2 + 1) = WHITE_ON_BLACK;
+		}
+	}
+	//Move the cursor back to the top left .
+	set_cursor(get_screen_offset(TOP,0));
+}
+
+// clear whole screen
 void clear_screen() 
 {
 
 	char *video_memory = (char *)VIDEO_ADDRESS;
 
-	for(int i = 0; i < MAX_COLS*MAX_ROWS*2; i += 2)
+	for(int i = 0; i < 2*MAX_ROWS*MAX_COLS; i += 2)
 	{
 		*(video_memory + i) = ' ';
 		*(video_memory + i + 1) = WHITE_ON_BLACK;
@@ -299,6 +340,7 @@ void clear_screen()
 	//Move the cursor back to the top left .
 	set_cursor(get_screen_offset(TOP,0));
 }
+
 
 int handle_scrolling(int cursor_offset)
 {
@@ -318,7 +360,6 @@ int handle_scrolling(int cursor_offset)
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
-	disable_mouse();
 
 	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
 
@@ -344,7 +385,6 @@ int handle_scrolling(int cursor_offset)
 void display_logo()
 {	
 	disable_cursor();
-	disable_mouse();
 	clear_screen();
 	char block = '#';
 	int attribute_byte = 0x3B; // Blinking Blue
@@ -377,7 +417,6 @@ void display_logo()
 	blink_screen();
 	timer_wait(2);
 	enable_cursor(13, 50);
-	enable_mouse();
 	return;
 
 }
@@ -397,6 +436,10 @@ void clear_line(char *line)
 
 void init_screen()
 {
+
+	// clear whole screen
+	clear_screen();
+
 	// initialize scroll buffers
 	for (int i = 0; i < BUFFER_TOP_ROWS; i++)
 	{
@@ -422,6 +465,8 @@ void init_screen()
 	print_at("CTRL SHIFT ALT CAPS", 0, 0, WHITE_ON_BLACK);
 
 	set_cursor(get_screen_offset(TOP,0));
+
+	draw_scroll_bar();
 
 }
 
@@ -466,9 +511,9 @@ void pop_from_buffer(char buffer[][2*MAX_COLS],char *dst_buffer, int buffer_rows
 
 void scroll_up()
 {
-	hide_scroll_bar();
 	if (scroll_index == 0)
 		return;
+	hide_scroll_bar();
 	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
 	push_to_buffer(bot_buffer, last_line, BUFFER_BOT_ROWS);
 
@@ -479,7 +524,6 @@ void scroll_up()
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i+1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
-	disable_mouse();
 
 	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
 
@@ -488,14 +532,15 @@ void scroll_up()
 	enable_mouse();
 
 	scroll_index--;
+	draw_scroll_bar();
 
 }
 
 void scroll_down()
 {
-	hide_scroll_bar();
 	if (scroll_index == BUFFER_TOP_ROWS)
 		return;
+	hide_scroll_bar();
 	disable_mouse();
 
 	char *first_line = (char *)(VIDEO_ADDRESS + get_screen_offset(TOP, 0));
@@ -507,7 +552,6 @@ void scroll_down()
 		memcpy((char *)(VIDEO_ADDRESS + get_screen_offset(i-1, 0)), (char *)(VIDEO_ADDRESS + get_screen_offset(i, 0)),2*MAX_COLS);
 
 	}
-	disable_mouse();
 
 	char *last_line = (char *)(VIDEO_ADDRESS + get_screen_offset(MAX_ROWS-1, 0));
 	pop_from_buffer(bot_buffer, last_line, BUFFER_BOT_ROWS);
@@ -515,6 +559,7 @@ void scroll_down()
 	enable_mouse();
 
 	scroll_index++;
+	draw_scroll_bar();
 
 }
 
@@ -529,7 +574,7 @@ void draw_scroll_bar()
 
 	}
 
-	int row = remap(scroll_index, 0, BUFFER_TOP_ROWS, TOP, MAX_ROWS-1); 
+	int row = remap(scroll_index, 0, BUFFER_TOP_ROWS, TOP, MAX_ROWS-1);
 	int col = 79;
 	print_char(' ', row, col, 0x70);
 	set_cursor(prev_cursor);

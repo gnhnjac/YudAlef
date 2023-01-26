@@ -20,6 +20,7 @@ typedef struct
 //refs
 void mouse_wait(uint8_t type);
 void disable_mouse();
+void save_to_mouse_buffer();
 void enable_mouse();
 void mouse_handler(struct regs *r);
 void ack();

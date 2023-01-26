@@ -29,7 +29,7 @@ os-image: boot/boot_sect.bin kernel.bin
 # entry code is right at the start of the binary.
 # $^ is substituted with all of the target's dependency files
 kernel.bin: kernel/kernel_entry.o ${OBJ}
-	@ld -o kernel.tmp -T link.ld $^
+	@ld -m i386pe -o kernel.tmp -T link.ld $^
 	@objcopy -O binary kernel.tmp kernel.bin
 	@del /f kernel.tmp
 

@@ -4,6 +4,7 @@
 #include "timer.h"
 #include "keyboard.h"
 #include "mouse.h"
+#include "terminal.h"
 
 void kmain();
 
@@ -18,30 +19,30 @@ void kmain() {
 	idt_install();
 	irq_install();
 	timer_install();
-	display_logo();
-	clear_screen();
+	//display_logo();
 	init_screen();
 	keyboard_install();
-	for (int i = 0; i < 80; i++)
-	{	
-
-		char lol = i%26;
-		if (i % 3 == 0)
-		{
-			lol += 'A';
-
-		}
-		else
-		{
-
-			lol += 'a';
-
-		}
-		int lolly = i;
-		printf("Hello, world! character: %c, iteration: 0x%x\n", lol, lolly);
-
-	}
 	mouse_install();
+	term_main(); // start terminal
+	// for (int i = 0; i < 80; i++)
+	// {	
+
+	// 	char lol = i%26;
+	// 	if (i % 3 == 0)
+	// 	{
+	// 		lol += 'A';
+
+	// 	}
+	// 	else
+	// 	{
+
+	// 		lol += 'a';
+
+	// 	}
+	// 	int lolly = i;
+	// 	printf("Hello, world! character: %c, iteration: 0x%x\n", lol, lolly);
+
+	// }
 
 	return;
 }
